@@ -1,0 +1,64 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  foundation-check:
+    name: Repository Foundation & Standards Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Docker Compose Configuration
+        run: |
+          docker compose config
+
+      - name: Verify Rules & Skills Metadata
+        run: |
+          echo "Verifying Antigravity rules..."
+          for rule in .agents/rules/*.md; do
+            echo "Checking $rule"
+            grep -q "^---" "$rule" || (echo "Missing frontmatter in $rule" && exit 1)
+          done
+          echo "Verifying Antigravity skills..."
+          for skill in .agents/skills/*/SKILL.md; do
+            echo "Checking $skill"
+            grep -q "^name:" "$skill" || (echo "Missing name in $skill" && exit 1)
+            grep -q "^description:" "$skill" || (echo "Missing description in $skill" && exit 1)
+          done
+          echo "All skills and rules verified successfully."
+
+      - name: Verify Environment Template (.env.example)
+        run: |
+          test -f .env.example || exit 1
+          grep -q "DATABASE_URL" .env.example
+          grep -q "OPERATIONAL_API_PORT" .env.example
+          grep -q "OPTIMIZATION_SERVICE_PORT" .env.example
+
+      - name: Run Foundation Validation Suite
+        run: |
+          npm run validate
+
+      - name: Check Formatting & Documentation Links
+        run: |
+          echo "Checking documentation integrity..."
+          test -f AGENTS.md || exit 1
+          test -f README.md || exit 1
+          test -f ARCHITECTURE.md || exit 1
+          test -f docs/IMPLEMENTATION_PLAN.md || exit 1
+          echo "Documentation verified."

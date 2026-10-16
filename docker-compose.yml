@@ -1,0 +1,121 @@
+services:
+  # ----------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: darkops-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-darkops_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-darkops_password}
+      POSTGRES_DB: ${POSTGRES_DB:-darkops_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-darkops_user} -d ${POSTGRES_DB:-darkops_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - darkops-network
+
+  # ----------------------------------------------------------------------------
+  # Operational API (Node.js + Express + TypeScript)
+  # ----------------------------------------------------------------------------
+  operational-api:
+    build:
+      context: ./services/operational-api
+      dockerfile: Dockerfile
+    container_name: darkops-operational-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${OPERATIONAL_API_PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darkops_user}:${POSTGRES_PASSWORD:-darkops_password}@db:5432/${POSTGRES_DB:-darkops_db}
+      OPTIMIZATION_SERVICE_URL: http://optimization-service:8000
+      JWT_SECRET: ${JWT_SECRET:-development_jwt_secret_change_in_production_32chars_min}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    ports:
+      - "${OPERATIONAL_API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - darkops-network
+    profiles:
+      - full
+      - backend
+
+  # ----------------------------------------------------------------------------
+  # Optimization Service (Python + FastAPI + OR-Tools)
+  # ----------------------------------------------------------------------------
+  optimization-service:
+    build:
+      context: ./services/optimization-service
+      dockerfile: Dockerfile
+    container_name: darkops-optimization-service
+    restart: unless-stopped
+    environment:
+      PORT: ${OPTIMIZATION_SERVICE_PORT:-8000}
+      LOG_LEVEL: ${OPTIMIZATION_LOG_LEVEL:-info}
+      SOLVER_TIMEOUT_SECONDS: ${OPTIMIZATION_SOLVER_TIMEOUT_SECONDS:-5}
+    ports:
+      - "${OPTIMIZATION_SERVICE_PORT:-8000}:8000"
+    networks:
+      - darkops-network
+    profiles:
+      - full
+      - backend
+
+  # ----------------------------------------------------------------------------
+  # Simulation Worker (Python)
+  # ----------------------------------------------------------------------------
+  simulation-worker:
+    build:
+      context: ./services/simulation-worker
+      dockerfile: Dockerfile
+    container_name: darkops-simulation-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darkops_user}:${POSTGRES_PASSWORD:-darkops_password}@db:5432/${POSTGRES_DB:-darkops_db}
+      OPERATIONAL_API_URL: http://operational-api:3000
+      LOG_LEVEL: ${SIMULATION_WORKER_LOG_LEVEL:-info}
+      DEFAULT_RANDOM_SEED: ${DEFAULT_RANDOM_SEED:-42}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - darkops-network
+    profiles:
+      - full
+
+  # ----------------------------------------------------------------------------
+  # Operations Dashboard (React + Vite + Tailwind CSS)
+  # ----------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    container_name: darkops-dashboard
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    networks:
+      - darkops-network
+    profiles:
+      - full
+      - frontend
+
+volumes:
+  postgres_data:
+    name: darkops_postgres_data
+
+networks:
+  darkops-network:
+    name: darkops-network
+    driver: bridge
