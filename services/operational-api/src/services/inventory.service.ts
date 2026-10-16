@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { PoolClient } from 'pg';
 import { withTransaction } from '../database/db';
 import {
   InventoryPosition,
@@ -301,6 +302,110 @@ export class InventoryService {
   }
 
   /**
+   * Reserves multiple SKUs atomically for a whole basket.
+   * Acquires row locks in deterministic SKU order to prevent deadlocks.
+   */
+  async reserveBasket(
+    input: {
+      store_id: string;
+      items: Array<{ sku_id: string; quantity: number }>;
+      external_reference?: string;
+      expires_in_minutes?: number;
+    },
+    actorId: string = 'system',
+    correlationId?: string,
+    idempotencyKey?: string,
+    existingClient?: PoolClient
+  ): Promise<InventoryReservation[]> {
+    const execute = async (client: PoolClient) => {
+      // Sort items by SKU ID to prevent deadlock between concurrent baskets
+      const sortedItems = [...input.items].sort((a, b) => a.sku_id.localeCompare(b.sku_id));
+      const reservations: InventoryReservation[] = [];
+      const positionsToUpdate: Array<{ position: InventoryPosition; quantity: number }> = [];
+
+      // Phase 1: Lock and validate all SKUs
+      for (const item of sortedItems) {
+        const position = await inventoryPositionRepository.findByStoreAndSkuForUpdate(
+          input.store_id,
+          item.sku_id,
+          client
+        );
+        if (!position) {
+          throw new InventoryPositionNotFoundError(
+            `Inventory position for store '${input.store_id}' and SKU '${item.sku_id}' not found`
+          );
+        }
+
+        const available = position.physical_on_hand - position.reserved_stock;
+        if (available < item.quantity) {
+          throw new InsufficientStockError(
+            `Insufficient available stock for SKU '${item.sku_id}'. Requested: ${item.quantity}, Available: ${available}`,
+            {
+              requested: item.quantity,
+              available,
+              store_id: input.store_id,
+              sku_id: item.sku_id
+            }
+          );
+        }
+
+        positionsToUpdate.push({ position, quantity: item.quantity });
+      }
+
+      // Phase 2: Apply reservations and log movements
+      const now = new Date();
+      const expiresAt = input.expires_in_minutes
+        ? new Date(now.getTime() + input.expires_in_minutes * 60 * 1000).toISOString()
+        : null;
+
+      for (const { position, quantity } of positionsToUpdate) {
+        position.reserved_stock += quantity;
+        await inventoryPositionRepository.update(position, client);
+
+        const reservationId = crypto.randomUUID();
+        const reservation: InventoryReservation = {
+          id: reservationId,
+          store_id: input.store_id,
+          sku_id: position.sku_id,
+          quantity,
+          remaining_quantity: quantity,
+          status: 'ACTIVE',
+          external_reference: input.external_reference || null,
+          created_at: now.toISOString(),
+          updated_at: now.toISOString(),
+          expires_at: expiresAt
+        };
+
+        const created = await inventoryReservationRepository.create(reservation, client);
+        reservations.push(created);
+
+        const movement: InventoryMovement = {
+          id: crypto.randomUUID(),
+          store_id: input.store_id,
+          sku_id: position.sku_id,
+          movement_type: 'RESERVATION',
+          quantity,
+          reservation_id: reservationId,
+          reason: input.external_reference ? `Order reservation: ${input.external_reference}` : 'Basket reservation',
+          actor_id: actorId,
+          correlation_id: correlationId,
+          idempotency_key: idempotencyKey,
+          created_at: now.toISOString()
+        };
+        await inventoryMovementRepository.create(movement, client);
+      }
+
+      return reservations;
+    };
+
+    if (existingClient) {
+      return execute(existingClient);
+    }
+    return withTransaction(execute);
+  }
+
+
+  /**
    * Releases an active or partially held reservation back to available stock.
    */
   async releaseReservation(
@@ -311,9 +416,10 @@ export class InventoryService {
     },
     actorId: string = 'system',
     correlationId?: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    existingClient?: PoolClient
   ): Promise<InventoryReservation> {
-    return withTransaction(async (client) => {
+    const execute = async (client: PoolClient) => {
       // Lock reservation row
       const reservation = await inventoryReservationRepository.findByIdForUpdate(
         input.reservation_id,
@@ -372,7 +478,12 @@ export class InventoryService {
       await inventoryMovementRepository.create(movement, client);
 
       return updatedReservation;
-    });
+    };
+
+    if (existingClient) {
+      return execute(existingClient);
+    }
+    return withTransaction(execute);
   }
 
   /**
@@ -386,9 +497,10 @@ export class InventoryService {
     },
     actorId: string = 'system',
     correlationId?: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    existingClient?: PoolClient
   ): Promise<InventoryReservation> {
-    return withTransaction(async (client) => {
+    const execute = async (client: PoolClient) => {
       // Lock reservation row
       const reservation = await inventoryReservationRepository.findByIdForUpdate(
         input.reservation_id,
@@ -449,7 +561,12 @@ export class InventoryService {
       await inventoryMovementRepository.create(movement, client);
 
       return updatedReservation;
-    });
+    };
+
+    if (existingClient) {
+      return execute(existingClient);
+    }
+    return withTransaction(execute);
   }
 
   /**

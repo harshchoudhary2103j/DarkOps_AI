@@ -10,6 +10,7 @@ import {
   ReservationNotFoundError,
   ReplenishmentRecommendationNotFoundError
 } from '../services/inventory-errors';
+import { DomainError } from '../services/order-errors';
 import { AuthenticatedRequest } from './auth.middleware';
 
 export function errorHandler(
@@ -19,6 +20,19 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   const correlationId = req.correlationId || 'unknown';
+
+  // 1. DomainError (Order, Picking, and Lifecycle Errors)
+  if (err instanceof DomainError) {
+    res.status(err.statusCode).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+        correlationId
+      }
+    });
+    return;
+  }
 
   // 1. Zod Request Validation Error
   if (err instanceof ZodError) {

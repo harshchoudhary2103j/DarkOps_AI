@@ -333,6 +333,58 @@
     },
     "/api/v1/inventory/recommendations/{id}/execute": {
       "post": { "summary": "Mark replenishment recommendation as executed" }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "summary": "Create customer order with lines",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      },
+      "get": { "summary": "List orders with status, store, and customer filtering" }
+    },
+    "/api/v1/orders/{orderId}": {
+      "get": { "summary": "Get order details with lines and lifecycle events" }
+    },
+    "/api/v1/orders/{orderId}/allocate": {
+      "post": {
+        "summary": "Trigger single-store candidate allocation, basket reservation, and picking task creation",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/orders/{orderId}/cancel": {
+      "post": {
+        "summary": "Cancel order and release unconsumed reserved stock in Inventory Core",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/picking/tasks": {
+      "get": { "summary": "List picking tasks with store and status filters" }
+    },
+    "/api/v1/picking/tasks/{taskId}": {
+      "get": { "summary": "Get picking task details with shelf-mapped pick items" }
+    },
+    "/api/v1/picking/tasks/{taskId}/start": {
+      "post": {
+        "summary": "Assign picker and start picking task",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/picking/tasks/{taskId}/items/{itemId}/confirm": {
+      "post": {
+        "summary": "Confirm picked item quantity and atomically consume reserved stock",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/picking/tasks/{taskId}/items/{itemId}/report-exception": {
+      "post": {
+        "summary": "Report missing or damaged item and release unfulfilled reserved stock",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/picking/tasks/{taskId}/fail": {
+      "post": {
+        "summary": "Fail picking task and release all unconsumed reserved inventory",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
     }
   }
 }
