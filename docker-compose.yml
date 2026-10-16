@@ -59,6 +59,7 @@ services:
     container_name: darkops-optimization-service
     restart: unless-stopped
     environment:
+      PYTHONUNBUFFERED: "1"
       PORT: ${OPTIMIZATION_SERVICE_PORT:-8000}
       LOG_LEVEL: ${OPTIMIZATION_LOG_LEVEL:-info}
       SOLVER_TIMEOUT_SECONDS: ${OPTIMIZATION_SOLVER_TIMEOUT_SECONDS:-5}
@@ -80,6 +81,7 @@ services:
     container_name: darkops-simulation-worker
     restart: unless-stopped
     environment:
+      PYTHONUNBUFFERED: "1"
       DATABASE_URL: postgresql://${POSTGRES_USER:-darkops_user}:${POSTGRES_PASSWORD:-darkops_password}@db:5432/${POSTGRES_DB:-darkops_db}
       OPERATIONAL_API_URL: http://operational-api:3000
       LOG_LEVEL: ${SIMULATION_WORKER_LOG_LEVEL:-info}
