@@ -26,6 +26,7 @@ class SimulationEngine:
     - Deterministic event priority queue with monotonic sequence counter
     - 100% run isolation via dedicated RunState
     - Clean pause, resume, and cancellation support
+    - Transparent baseline heuristics (Replenishment, Allocation, Routing)
     """
 
     def __init__(
@@ -36,6 +37,8 @@ class SimulationEngine:
         end_time: datetime,
         seed: int,
         config_snapshot: Optional[Dict[str, Any]] = None,
+        policy_config: Optional[Any] = None,
+        enable_baseline_policies: bool = True,
     ):
         self.run_id = run_id
         self.world = world
@@ -48,7 +51,38 @@ class SimulationEngine:
         self.clock = SimulationClock(start_time=self.start_time, end_time=self.end_time)
         self.event_queue = EventQueue(run_id=run_id)
         self.state = RunState(run_id=run_id, world=world)
-        self.handlers = EventHandlerRegistry(run_state=self.state, event_queue=self.event_queue)
+
+        # Baseline Policies Setup
+        if enable_baseline_policies:
+            from src.policies.adapters import SimulationPolicyAdapter
+            from src.policies.allocation import BaselineOrderAllocationPolicy
+            from src.policies.config import BaselinePolicyConfig
+            from src.policies.replenishment import BaselineReplenishmentPolicy
+            from src.policies.routing import BaselinePickerRoutingPolicy
+
+            p_cfg = policy_config or BaselinePolicyConfig()
+            supplier_skus_dicts = [ss.model_dump() for ss in world.supplier_skus]
+            replenishment = BaselineReplenishmentPolicy(
+                config=p_cfg,
+                historical_sales=world.historical_sales,
+                supplier_skus=supplier_skus_dicts,
+            )
+            allocation = BaselineOrderAllocationPolicy(config=p_cfg)
+            routing = BaselinePickerRoutingPolicy(config=p_cfg)
+            self.policy_adapter: Optional[Any] = SimulationPolicyAdapter(
+                config=p_cfg,
+                replenishment_policy=replenishment,
+                allocation_policy=allocation,
+                routing_policy=routing,
+            )
+        else:
+            self.policy_adapter = None
+
+        self.handlers = EventHandlerRegistry(
+            run_state=self.state,
+            event_queue=self.event_queue,
+            policy_adapter=self.policy_adapter,
+        )
         self.event_store = EventStore(run_id=run_id)
 
         self.job = SimulationJob(

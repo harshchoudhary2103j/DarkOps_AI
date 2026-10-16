@@ -21,9 +21,10 @@ class EventHandlerRegistry:
     Mutates run-scoped RunState and schedules downstream events into EventQueue.
     """
 
-    def __init__(self, run_state: RunState, event_queue: EventQueue):
+    def __init__(self, run_state: RunState, event_queue: EventQueue, policy_adapter: Optional[Any] = None):
         self.state = run_state
         self.queue = event_queue
+        self.policy_adapter = policy_adapter
 
     def handle(self, event: SimulationEvent) -> Dict[str, Any]:
         handler_map = {
@@ -80,6 +81,9 @@ class EventHandlerRegistry:
         return {"order_id": order_id, "status": "CREATED"}
 
     def _handle_allocation_requested(self, event: SimulationEvent) -> Dict[str, Any]:
+        if self.policy_adapter is not None:
+            return self.policy_adapter.handle_allocation(event, self.state, self.queue)
+
         p = event.payload
         order_id = p["order_id"]
         order = self.state.orders.get(order_id)
@@ -210,6 +214,9 @@ class EventHandlerRegistry:
         return {"status": "RECORDED"}
 
     def _handle_picking_started(self, event: SimulationEvent) -> Dict[str, Any]:
+        if self.policy_adapter is not None:
+            return self.policy_adapter.handle_picking_started(event, self.state, self.queue)
+
         p = event.payload
         task_id = p["task_id"]
         order_id = p["order_id"]
