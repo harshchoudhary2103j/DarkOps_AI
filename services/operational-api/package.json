@@ -5,22 +5,32 @@
   "description": "DarkOps AI Operational API Service",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); if(fs.existsSync('src/database/migrations')) fs.cpSync('src/database/migrations', 'dist/database/migrations', {recursive: true});\"",
     "start": "node dist/index.js",
     "dev": "tsc -w & node dist/index.js",
     "lint": "echo \"Operational API lint passed\"",
     "type-check": "tsc --noEmit",
-    "test": "echo \"Operational API tests passed\""
+    "migrate": "node dist/database/migrate.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit tests/contract",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
-    "typescript": "^5.4.5"
+    "@types/pg": "^8.11.5",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=20.0.0"

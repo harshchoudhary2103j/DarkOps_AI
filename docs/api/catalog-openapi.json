@@ -1,0 +1,275 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "DarkOps AI Operational Catalog API",
+    "version": "1.0.0",
+    "description": "Standardized REST endpoints for managing structural dark-store catalog entities: Stores, Service Zones, Products, SKUs, Suppliers, and Warehouse Layout Graphs."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "AdminKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Admin-Key"
+      }
+    },
+    "schemas": {
+      "ErrorDetails": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "example": "VALIDATION_ERROR" },
+          "message": { "type": "string", "example": "Request payload validation failed" },
+          "details": { "type": "object" },
+          "correlationId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "$ref": "#/components/schemas/ErrorDetails" }
+        }
+      },
+      "GeoJSONPolygon": {
+        "type": "object",
+        "required": ["type", "coordinates"],
+        "properties": {
+          "type": { "type": "string", "enum": ["Polygon"] },
+          "coordinates": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": { "type": "number" },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "minItems": 4
+            }
+          }
+        }
+      },
+      "Store": {
+        "type": "object",
+        "required": ["id", "name", "status", "latitude", "longitude", "service_area", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "MAINTENANCE"] },
+          "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+          "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+          "service_area": { "$ref": "#/components/schemas/GeoJSONPolygon" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ServiceZone": {
+        "type": "object",
+        "required": ["id", "store_id", "name", "boundary", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "store_id": { "type": "string" },
+          "name": { "type": "string" },
+          "boundary": { "$ref": "#/components/schemas/GeoJSONPolygon" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["id", "name", "category", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "category": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["ACTIVE", "DISCONTINUED"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SKU": {
+        "type": "object",
+        "required": ["id", "product_id", "sku_code", "pack_size", "shelf_life_days", "storage_temp", "unit_price", "currency", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "product_id": { "type": "string" },
+          "sku_code": { "type": "string" },
+          "pack_size": { "type": "integer", "minimum": 1 },
+          "shelf_life_days": { "type": "integer", "minimum": 1 },
+          "storage_temp": {
+            "type": "object",
+            "required": ["unit", "min", "max"],
+            "properties": {
+              "unit": { "type": "string", "enum": ["CELSIUS", "FAHRENHEIT"] },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "zone": { "type": "string", "enum": ["AMBIENT", "CHILLED", "FROZEN"] }
+            }
+          },
+          "unit_price": { "type": "number", "minimum": 0 },
+          "currency": { "type": "string", "example": "USD" },
+          "status": { "type": "string", "enum": ["ACTIVE", "DISCONTINUED"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Supplier": {
+        "type": "object",
+        "required": ["id", "name", "default_lead_time_hours", "default_moq", "review_schedule", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "default_lead_time_hours": { "type": "integer", "minimum": 1 },
+          "default_moq": { "type": "integer", "minimum": 1 },
+          "review_schedule": {
+            "type": "object",
+            "required": ["cadence"],
+            "properties": {
+              "cadence": { "type": "string", "enum": ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
+              "review_time_utc": { "type": "string", "example": "08:00" },
+              "days_of_week": { "type": "array", "items": { "type": "integer" } }
+            }
+          },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WarehouseLayout": {
+        "type": "object",
+        "required": ["id", "store_id", "name", "version", "status", "nodes", "edges", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "store_id": { "type": "string" },
+          "name": { "type": "string" },
+          "version": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["DRAFT", "ACTIVE", "ARCHIVED"] },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "type", "x", "y", "z"],
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string", "enum": ["DISPATCH_STATION", "AISLE", "SHELF", "PICK_ZONE"] },
+                "aisle_id": { "type": "string", "nullable": true },
+                "shelf_id": { "type": "string", "nullable": true },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["from_node", "to_node", "distance", "bidirectional"],
+              "properties": {
+                "from_node": { "type": "string" },
+                "to_node": { "type": "string" },
+                "distance": { "type": "number", "minimum": 0 },
+                "bidirectional": { "type": "boolean" }
+              }
+            }
+          },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Health Check Probe",
+        "responses": {
+          "200": { "description": "Service is healthy" }
+        }
+      }
+    },
+    "/api/v1/stores": {
+      "get": {
+        "summary": "List Stores with pagination",
+        "responses": {
+          "200": { "description": "Paginated list of stores" }
+        }
+      },
+      "post": {
+        "summary": "Create a new Store (Admin required)",
+        "security": [{ "BearerAuth": [] }, { "AdminKeyAuth": [] }],
+        "responses": {
+          "201": { "description": "Store created successfully" },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+        }
+      }
+    },
+    "/api/v1/stores/{id}": {
+      "get": {
+        "summary": "Get store by ID",
+        "responses": {
+          "200": { "description": "Store details" },
+          "404": { "description": "Store not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update store attributes",
+        "security": [{ "BearerAuth": [] }, { "AdminKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "Store updated" }
+        }
+      },
+      "delete": {
+        "summary": "Delete store",
+        "security": [{ "BearerAuth": [] }, { "AdminKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "Store deleted" }
+        }
+      }
+    },
+    "/api/v1/service-zones": {
+      "get": { "summary": "List service zones" },
+      "post": { "summary": "Create service zone" }
+    },
+    "/api/v1/products": {
+      "get": { "summary": "List products" },
+      "post": { "summary": "Create product" }
+    },
+    "/api/v1/skus": {
+      "get": { "summary": "List SKUs" },
+      "post": { "summary": "Create SKU" }
+    },
+    "/api/v1/skus/code/{code}": {
+      "get": { "summary": "Get SKU by code" }
+    },
+    "/api/v1/suppliers": {
+      "get": { "summary": "List suppliers" },
+      "post": { "summary": "Create supplier" }
+    },
+    "/api/v1/suppliers/{id}/skus": {
+      "get": { "summary": "List SKUs provided by supplier" },
+      "post": { "summary": "Link SKU to supplier with pricing and MOQ" }
+    },
+    "/api/v1/warehouse-layouts": {
+      "post": { "summary": "Create warehouse layout graph (validates reachability)" }
+    },
+    "/api/v1/warehouse-layouts/{id}/activate": {
+      "post": { "summary": "Activate warehouse layout for store" }
+    }
+  }
+}
