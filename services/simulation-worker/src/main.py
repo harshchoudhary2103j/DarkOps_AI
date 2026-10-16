@@ -97,6 +97,26 @@ def poll_and_execute_job(database_url: str) -> bool:
         engine.run_all()
         engine.job.persist_to_postgres(database_url)
         engine.event_store.persist_to_postgres(database_url)
+
+        # Event-Derived KPI Evaluation (Phase 07)
+        try:
+            from src.evaluation import EventDerivedEvaluator, persist_evaluation_summary
+            evaluator = EventDerivedEvaluator()
+            summary = evaluator.evaluate(
+                run_id=run_id,
+                scenario_id=scenario_id,
+                seed=seed,
+                events=engine.event_store.get_events(),
+                simulated_start_time=start_time,
+                simulated_end_time=end_time,
+                policy_identifiers=["baseline_policies_v1"],
+                policy_config=engine.policy_config.model_dump() if engine.policy_config else {},
+            )
+            persist_evaluation_summary(summary, database_url)
+            print(f"[simulation-worker] Evaluated and persisted KPIs for {run_id}.")
+        except Exception as eval_err:
+            print(f"[simulation-worker] Warning: KPI evaluation failed for {run_id}: {eval_err}", file=sys.stderr)
+
         print(f"[simulation-worker] Completed job {run_id}: {engine.event_store.count()} events recorded.")
         return True
     except Exception as e:

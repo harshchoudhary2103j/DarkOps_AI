@@ -191,6 +191,88 @@
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }
+      },
+      "MetricValue": {
+        "type": "object",
+        "required": ["metric_name", "unit", "formula_ref", "status", "objective"],
+        "properties": {
+          "metric_name": { "type": "string" },
+          "value": { "type": "number", "nullable": true },
+          "unit": { "type": "string" },
+          "formula_ref": { "type": "string" },
+          "status": { "type": "string", "enum": ["AVAILABLE", "ZERO", "NOT_APPLICABLE", "INSUFFICIENT_DATA", "INVALID_EVENT_STREAM"] },
+          "objective": { "type": "string", "enum": ["HIGHER_IS_BETTER", "LOWER_IS_BETTER", "NEUTRAL"] },
+          "numerator": { "type": "number", "nullable": true },
+          "denominator": { "type": "number", "nullable": true },
+          "sample_count": { "type": "integer", "nullable": true },
+          "mean": { "type": "number", "nullable": true },
+          "median": { "type": "number", "nullable": true },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "EvaluationSummary": {
+        "type": "object",
+        "required": ["evaluation_id", "run_id", "scenario_id", "seed", "status", "simulated_duration_seconds", "evaluator_version", "formula_version", "evaluated_at", "event_count", "kpis", "disclaimer"],
+        "properties": {
+          "evaluation_id": { "type": "string" },
+          "run_id": { "type": "string" },
+          "scenario_id": { "type": "string" },
+          "seed": { "type": "integer" },
+          "status": { "type": "string" },
+          "simulated_duration_seconds": { "type": "number" },
+          "evaluator_version": { "type": "string" },
+          "formula_version": { "type": "string" },
+          "evaluated_at": { "type": "string", "format": "date-time" },
+          "event_count": { "type": "integer" },
+          "policy_identifiers": { "type": "array", "items": { "type": "string" } },
+          "policy_config": { "type": "object" },
+          "cost_config": { "type": "object" },
+          "kpis": { "type": "object", "additionalProperties": { "$ref": "#/components/schemas/MetricValue" } },
+          "data_quality_warnings": { "type": "array", "items": { "type": "string" } },
+          "disclaimer": { "type": "string" }
+        }
+      },
+      "CompareRunsRequest": {
+        "type": "object",
+        "required": ["baseline_run_id", "candidate_run_id"],
+        "properties": {
+          "baseline_run_id": { "type": "string" },
+          "candidate_run_id": { "type": "string" },
+          "cost_config_override": { "type": "object" }
+        }
+      },
+      "MetricComparison": {
+        "type": "object",
+        "required": ["metric_name", "unit", "baseline_status", "candidate_status", "objective", "improvement_status"],
+        "properties": {
+          "metric_name": { "type": "string" },
+          "unit": { "type": "string" },
+          "baseline_value": { "type": "number", "nullable": true },
+          "candidate_value": { "type": "number", "nullable": true },
+          "baseline_status": { "type": "string" },
+          "candidate_status": { "type": "string" },
+          "absolute_difference": { "type": "number", "nullable": true },
+          "percentage_change": { "type": "number", "nullable": true },
+          "percentage_change_explanation": { "type": "string", "nullable": true },
+          "objective": { "type": "string" },
+          "is_improvement": { "type": "boolean", "nullable": true },
+          "improvement_status": { "type": "string", "enum": ["IMPROVED", "DEGRADED", "UNCHANGED", "INCOMPARABLE", "CHANGED"] }
+        }
+      },
+      "ComparisonReport": {
+        "type": "object",
+        "required": ["baseline_run_id", "candidate_run_id", "scenario_compatible", "duration_compatible", "cost_config_compatible", "comparisons", "disclaimer"],
+        "properties": {
+          "baseline_run_id": { "type": "string" },
+          "candidate_run_id": { "type": "string" },
+          "scenario_compatible": { "type": "boolean" },
+          "duration_compatible": { "type": "boolean" },
+          "cost_config_compatible": { "type": "boolean" },
+          "policy_variation_detected": { "type": "boolean" },
+          "comparisons": { "type": "object", "additionalProperties": { "$ref": "#/components/schemas/MetricComparison" } },
+          "compatibility_warnings": { "type": "array", "items": { "type": "string" } },
+          "disclaimer": { "type": "string" }
+        }
       }
     }
   },
@@ -384,6 +466,39 @@
       "post": {
         "summary": "Fail picking task and release all unconsumed reserved inventory",
         "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/simulation/runs/{id}/kpis": {
+      "get": {
+        "summary": "Retrieve or compute event-derived KPI evaluation summary for a completed simulation run",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Simulation Run ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluation summary with event-derived KPIs and synthetic scenario disclaimer",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/EvaluationSummary" } } } } }
+          },
+          "400": { "description": "Run is in progress or not in terminal state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+          "404": { "description": "Simulation run not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+        }
+      }
+    },
+    "/api/v1/evaluation/compare": {
+      "post": {
+        "summary": "Execute fair comparison between baseline and candidate simulation evaluations",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CompareRunsRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Comparison report detailing deltas, percentage changes, and improvement directions",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/ComparisonReport" } } } } }
+          },
+          "400": { "description": "Validation error on payload", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+          "404": { "description": "One or both simulation runs not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+        }
       }
     }
   }

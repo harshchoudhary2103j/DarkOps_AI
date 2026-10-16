@@ -11,6 +11,7 @@ import { warehouseLayoutRouter } from './routes/warehouse-layout.routes';
 import { inventoryRouter } from './routes/inventory.routes';
 import { orderRouter } from './routes/order.routes';
 import { pickingRouter } from './routes/picking.routes';
+import { simulationRouter, evaluationRouter } from './routes/evaluation.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -43,6 +44,8 @@ export function createApp(): Express {
   app.use('/api/v1/inventory', inventoryRouter);
   app.use('/api/v1/orders', orderRouter);
   app.use('/api/v1/picking', pickingRouter);
+  app.use('/api/v1/simulation', simulationRouter);
+  app.use('/api/v1/evaluation', evaluationRouter);
 
   // Fallback for unhandled 404 endpoints
   app.use((req: Request, res: Response) => {
