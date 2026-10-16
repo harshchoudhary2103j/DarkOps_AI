@@ -270,6 +270,69 @@
     },
     "/api/v1/warehouse-layouts/{id}/activate": {
       "post": { "summary": "Activate warehouse layout for store" }
+    },
+    "/api/v1/inventory": {
+      "get": { "summary": "List inventory positions with bounded pagination and low_stock filter" }
+    },
+    "/api/v1/inventory/{storeId}/{skuId}": {
+      "get": { "summary": "Get inventory position for store and SKU" }
+    },
+    "/api/v1/inventory/initialize": {
+      "post": {
+        "summary": "Initialize inventory position with opening balance (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/receipts": {
+      "post": {
+        "summary": "Receive stock from supplier (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/adjustments": {
+      "post": {
+        "summary": "Apply manual stock adjustment (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/reserve": {
+      "post": {
+        "summary": "Reserve available stock with row-level locking (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/release": {
+      "post": {
+        "summary": "Release reserved stock back to available (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/consume": {
+      "post": {
+        "summary": "Consume reserved stock upon picking (Idempotency-Key required)",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/api/v1/inventory/movements": {
+      "get": { "summary": "Query immutable stock movement ledger" }
+    },
+    "/api/v1/inventory/reconcile/{storeId}/{skuId}": {
+      "get": { "summary": "Reconcile stored position balances against historical ledger movements" }
+    },
+    "/api/v1/inventory/recommendations": {
+      "get": { "summary": "List replenishment recommendations" }
+    },
+    "/api/v1/inventory/recommendations/generate": {
+      "post": { "summary": "Trigger threshold-based replenishment recommendations" }
+    },
+    "/api/v1/inventory/recommendations/{id}/approve": {
+      "post": { "summary": "Approve replenishment recommendation" }
+    },
+    "/api/v1/inventory/recommendations/{id}/reject": {
+      "post": { "summary": "Reject replenishment recommendation" }
+    },
+    "/api/v1/inventory/recommendations/{id}/execute": {
+      "post": { "summary": "Mark replenishment recommendation as executed" }
     }
   }
 }
