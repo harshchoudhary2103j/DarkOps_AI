@@ -1,0 +1,22 @@
+{
+  "scenario_id": "manhattan-demo",
+  "scenario_name": "Manhattan Urban Network",
+  "seed": 42,
+  "num_stores": 2,
+  "geo_center_lat": 40.758,
+  "geo_center_lon": -73.9855,
+  "geo_radius_km": 4.5,
+  "num_skus": 16,
+  "categories": ["Produce", "Dairy", "Beverages", "Snacks"],
+  "price_range_min": 1.99,
+  "price_range_max": 18.5,
+  "warehouse_aisles": 3,
+  "warehouse_shelves_per_aisle": 4,
+  "initial_stock_min": 30,
+  "initial_stock_max": 80,
+  "num_suppliers": 3,
+  "supplier_lead_time_min_hours": 12,
+  "supplier_lead_time_max_hours": 48,
+  "history_horizon_days": 30,
+  "daily_demand_lambda": 10.0
+}

@@ -93,7 +93,7 @@ export const CreateSKUSchema = z.object({
   shelf_life_days: z.number().int().positive('Shelf life must be a positive integer of days'),
   storage_temp: StorageTempSchema,
   unit_price: z.number().min(0, 'Unit price cannot be negative')
-    .refine(val => Math.round(val * 100) === val * 100, {
+    .refine(val => Math.abs(Math.round(val * 100) - val * 100) < 1e-6, {
       message: 'Unit price must not exceed 2 decimal places'
     }),
   currency: z.string().length(3, 'Currency must be a 3-character ISO code').default('USD'),
