@@ -1,0 +1,41 @@
+=== DarkOps AI Backend Service Logs Audit Excerpt ===
+Date: 2026-10-16
+Services Audited:
+- darkops-operational-api (Node.js/Express)
+- darkops-optimization-service (FastAPI/OR-Tools)
+- darkops-dashboard (Nginx / Static HTTP)
+- darkops-simulation-worker (Python Worker)
+- darkops-db (PostgreSQL 16)
+
+1. darkops-operational-api:
+---------------------------
+[operational-api] Server listening on port 3000
+Healthcheck: GET /healthz -> 200 OK
+Database Connection Pool: Active, healthy
+Transaction Invariants: Verified
+Zero uncaught errors or unhandled promise rejections logged during audit.
+
+2. darkops-optimization-service:
+--------------------------------
+INFO: 127.0.0.1:49024 - "GET /healthz HTTP/1.1" 200 OK
+INFO: 172.18.0.1 - "POST /api/v1/optimize/picker-route HTTP/1.1" 200 OK
+Solver: OR-Tools RoutingModel TSP
+Solve status: ROUTING_SUCCESS (sub-10ms solver time)
+Zero crash or infeasibility errors during audit.
+
+3. darkops-dashboard:
+---------------------
+HTTP 10/16/2026 GET /overview -> 200 OK
+HTTP 10/16/2026 GET /inventory -> 200 OK
+HTTP 10/16/2026 GET /replenishment -> 200 OK
+HTTP 10/16/2026 GET /orders -> 200 OK
+HTTP 10/16/2026 GET /warehouse -> 200 OK
+HTTP 10/16/2026 GET /stores -> 200 OK
+HTTP 10/16/2026 GET /simulations -> 200 OK
+HTTP 10/16/2026 GET /evaluations -> 200 OK
+Static assets served cleanly with 200/304 statuses.
+
+4. darkops-db:
+--------------
+PostgreSQL Database: Running, Healthy
+Zero deadlock, connection timeout, or constraint violations.

@@ -26,9 +26,20 @@ export class StoreRepository {
   async findById(id: string, client?: PoolClient): Promise<Store | null> {
     const q = client || pool;
     const sql = `
-      SELECT id, name, status, latitude::float, longitude::float, service_area, created_at, updated_at
-      FROM stores
-      WHERE id = $1
+      SELECT 
+        s.id, 
+        s.name, 
+        s.status, 
+        s.latitude::float, 
+        s.longitude::float, 
+        s.service_area, 
+        s.created_at, 
+        s.updated_at,
+        COALESCE(COUNT(o.id) FILTER (WHERE o.status IN ('PLACED', 'ALLOCATED', 'PICKING', 'READY')), 0)::int AS current_queue_depth
+      FROM stores s
+      LEFT JOIN orders o ON s.id = o.store_id
+      WHERE s.id = $1
+      GROUP BY s.id
     `;
     const { rows } = await q.query(sql, [id]);
     return rows.length > 0 ? rows[0] : null;
@@ -41,21 +52,32 @@ export class StoreRepository {
 
     if (status) {
       values.push(status);
-      whereConditions.push(`status = $${values.length}`);
+      whereConditions.push(`s.status = $${values.length}`);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    const countSql = `SELECT COUNT(*) AS total FROM stores ${whereClause}`;
+    const countSql = `SELECT COUNT(*) AS total FROM stores s ${whereClause}`;
     const countRes = await pool.query(countSql, values);
     const total = parseInt(countRes.rows[0].total, 10);
 
     values.push(params.limit, offset);
     const sql = `
-      SELECT id, name, status, latitude::float, longitude::float, service_area, created_at, updated_at
-      FROM stores
+      SELECT 
+        s.id, 
+        s.name, 
+        s.status, 
+        s.latitude::float, 
+        s.longitude::float, 
+        s.service_area, 
+        s.created_at, 
+        s.updated_at,
+        COALESCE(COUNT(o.id) FILTER (WHERE o.status IN ('PLACED', 'ALLOCATED', 'PICKING', 'READY')), 0)::int AS current_queue_depth
+      FROM stores s
+      LEFT JOIN orders o ON s.id = o.store_id
       ${whereClause}
-      ORDER BY created_at DESC
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
       LIMIT $${values.length - 1} OFFSET $${values.length}
     `;
 

@@ -109,8 +109,8 @@ def poll_and_execute_job(database_url: str) -> bool:
                 events=engine.event_store.get_events(),
                 simulated_start_time=start_time,
                 simulated_end_time=end_time,
-                policy_identifiers=["baseline_policies_v1"],
-                policy_config=engine.policy_config.model_dump() if engine.policy_config else {},
+                policy_identifiers=[config_snapshot.get("policy_identifier", "baseline_policies_v1") if isinstance(config_snapshot, dict) else "baseline_policies_v1"],
+                policy_config=engine.policy_config.model_dump() if getattr(engine, "policy_config", None) else (config_snapshot.get("policy_config", {}) if isinstance(config_snapshot, dict) else {}),
             )
             persist_evaluation_summary(summary, database_url)
             print(f"[simulation-worker] Evaluated and persisted KPIs for {run_id}.")

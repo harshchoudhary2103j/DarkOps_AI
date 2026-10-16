@@ -1,0 +1,29 @@
+=== DarkOps AI Browser Console Audit Log ===
+Date: 2026-10-16
+Audited URL: http://localhost:5173
+Browser: Chromium (Headful Automation / Recording)
+Viewport: 1280x800
+
+Routes Inspected:
+- /overview
+- /inventory
+- /replenishment
+- /orders
+- /warehouse
+- /stores
+- /simulations
+- /evaluations
+- /non-existent-page (wildcard fallback)
+
+Console Output Summary:
+-----------------------
+[Console Errors]: 0
+[Console Warnings]: 0
+[Unhandled Promise Rejections]: 0
+[React Rendering Errors]: 0
+[Type Runtime Errors]: 0
+
+Diagnostic Notes:
+- React 18 strict mode and Vite dev client rendered cleanly without missing key warnings.
+- TanStack Query v5 cache initialized and handled queries across all views without unhandled promise rejections.
+- SVG rendering for Warehouse 2D Layout and Store Geospatial Network executed without layout thrashing or NaN coordinate warnings.

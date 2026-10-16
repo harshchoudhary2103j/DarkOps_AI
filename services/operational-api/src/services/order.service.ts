@@ -3,6 +3,7 @@ import { Order, OrderLine, OrderLifecycleEvent } from '../domain/order.types';
 import { orderRepository } from '../repositories/order.repository';
 import { orderLineRepository } from '../repositories/order-line.repository';
 import { pickingTaskRepository } from '../repositories/picking-task.repository';
+import { pickItemRepository } from '../repositories/pick-item.repository';
 import { orderEventRepository } from '../repositories/order-event.repository';
 import { orderAllocationService } from './order-allocation.service';
 import { inventoryService } from './inventory.service';
@@ -223,7 +224,7 @@ export class OrderService {
     });
   }
 
-  async getOrderById(orderId: string): Promise<Order & { events: OrderLifecycleEvent[] }> {
+  async getOrderById(orderId: string): Promise<Order & { events: OrderLifecycleEvent[]; picking_task?: any }> {
     const order = await orderRepository.findById(orderId);
     if (!order) {
       throw new OrderNotFoundError(`Order '${orderId}' not found`);
@@ -231,11 +232,16 @@ export class OrderService {
 
     const lines = await orderLineRepository.findByOrderId(orderId);
     const events = await orderEventRepository.findByOrderId(orderId);
+    const task = await pickingTaskRepository.findByOrderId(orderId);
+    if (task) {
+      task.items = await pickItemRepository.findByTaskId(task.id);
+    }
 
     return {
       ...order,
       lines,
-      events
+      events,
+      picking_task: task || null
     };
   }
 

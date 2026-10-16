@@ -8,6 +8,7 @@ import { replenishmentRepository, ReplenishmentFilters } from '../repositories/r
 import { inventoryPositionRepository } from '../repositories/inventory-position.repository';
 import { supplierRepository } from '../repositories/supplier.repository';
 import { PaginationParams, PaginatedResult } from '../domain/types';
+import { inventoryService } from './inventory.service';
 
 export class ReplenishmentService {
   /**
@@ -130,7 +131,20 @@ export class ReplenishmentService {
     rec.status = 'EXECUTED';
     rec.executed_at = new Date().toISOString();
 
-    return replenishmentRepository.update(rec);
+    const updated = await replenishmentRepository.update(rec);
+
+    // Physically refuel inventory via receiveStock
+    await inventoryService.receiveStock(
+      {
+        store_id: rec.store_id,
+        sku_id: rec.sku_id,
+        quantity: rec.suggested_quantity,
+        reason: `Inbound PO ${id} executed - replenishment restock`
+      },
+      actorId
+    );
+
+    return updated;
   }
 
   async list(params: PaginationParams, filters: ReplenishmentFilters): Promise<PaginatedResult<ReplenishmentRecommendation>> {

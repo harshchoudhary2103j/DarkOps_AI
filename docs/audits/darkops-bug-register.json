@@ -1,0 +1,119 @@
+{
+  "audit_version": "1.0",
+  "audit_status": "completed",
+  "summary": {
+    "pages_inspected": 8,
+    "controls_identified": 92,
+    "controls_passed": 90,
+    "controls_failed": 0,
+    "controls_partial": 2,
+    "controls_blocked": 0
+  },
+  "issues": [
+    {
+      "id": "DARKOPS-001",
+      "title": "Wildcard fallback silently redirects to /overview instead of displaying dedicated 404 Route Not Found page",
+      "severity": "P2",
+      "status": "confirmed",
+      "page": "/*",
+      "component": "AppShell / Routes (App.tsx)",
+      "steps_to_reproduce": [
+        "1. Open browser to http://localhost:5173",
+        "2. Navigate in address bar directly to http://localhost:5173/non-existent-route",
+        "3. Observe browser URL changes silently to http://localhost:5173/overview"
+      ],
+      "expected_behavior": "Display an informative 404 Route Not Found screen or toast banner with a clear navigation link back to Overview.",
+      "actual_behavior": "React Router wildcard matches <Route path='*' element={<Navigate to='/overview' replace />} /> without operator feedback.",
+      "browser_error": null,
+      "http_status": 200,
+      "request_path": "/non-existent-route",
+      "correlation_id": null,
+      "root_cause": "The router configuration lacks a dedicated NotFoundPage component and falls back unconditionally to Navigate replace='/overview'.",
+      "root_cause_confidence": "high",
+      "evidence": [
+        "apps/dashboard/src/App.tsx line 56: <Route path='*' element={<Navigate to='/overview' replace />} />",
+        "docs/audits/evidence/console-summary.txt"
+      ],
+      "proposed_fix": "Create a dedicated NotFoundPage component with quick links to dashboard modules and render it on path='*'.",
+      "verification_test": "Navigate to /invalid-url and assert 'Page Not Found' heading with 'Return to Control Tower' button appears."
+    },
+    {
+      "id": "DARKOPS-002",
+      "title": "Warehouse 2D Viewer layout canvas lacks interactive mouse drag-to-pan gesture",
+      "severity": "P2",
+      "status": "confirmed",
+      "page": "/warehouse",
+      "component": "Warehouse2DViewer",
+      "steps_to_reproduce": [
+        "1. Navigate to http://localhost:5173/warehouse",
+        "2. Locate the 2D SVG warehouse layout canvas",
+        "3. Click and drag the mouse pointer across the aisles to pan"
+      ],
+      "expected_behavior": "Canvas should smoothly drag-pan across coordinate space to inspect dense rack clusters.",
+      "actual_behavior": "Canvas uses a static viewBox computed from layout dimensions without mouse drag event listeners.",
+      "browser_error": null,
+      "http_status": null,
+      "request_path": null,
+      "correlation_id": null,
+      "root_cause": "Warehouse2DViewer does not attach onMouseDown/onMouseMove/onMouseUp listeners to dynamically adjust SVG viewBox offsets during drag gestures.",
+      "root_cause_confidence": "high",
+      "evidence": [
+        "apps/dashboard/src/components/visualizers/Warehouse2DViewer.tsx line 74: viewBox='0 0 ${width} ${height}'",
+        "docs/audits/evidence/08_warehouse_page.png"
+      ],
+      "proposed_fix": "Add panOffset state with mouse/touch drag handlers on the SVG container to support smooth pan and zoom interactions.",
+      "verification_test": "Simulate mouse drag on canvas and assert viewBox attributes update with mouse translation."
+    },
+    {
+      "id": "DARKOPS-003",
+      "title": "Optimization Service container logs harmless SwigPyObject deprecation warnings during OR-Tools initialization",
+      "severity": "P3",
+      "status": "confirmed",
+      "page": "/warehouse",
+      "component": "Optimization Service (ortools.constraint_solver)",
+      "steps_to_reproduce": [
+        "1. Run optimization service tests or initialize OR-Tools routing solver",
+        "2. Inspect python standard output / stderr"
+      ],
+      "expected_behavior": "Clean initialization without deprecation warnings.",
+      "actual_behavior": "DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute logged during SWIG wrapper import.",
+      "browser_error": null,
+      "http_status": null,
+      "request_path": "/api/v1/optimize/picker-route",
+      "correlation_id": null,
+      "root_cause": "OR-Tools Python C++ SWIG bindings produce deprecation warnings in Python 3.9+ when importing C extension types.",
+      "root_cause_confidence": "high",
+      "evidence": [
+        "docs/audits/evidence/test-execution-summary.txt section 3"
+      ],
+      "proposed_fix": "Add warnings.filterwarnings('ignore', category=DeprecationWarning, module='ortools.*') or pytest filterwarnings in setup.",
+      "verification_test": "Execute pytest and verify zero warnings logged."
+    },
+    {
+      "id": "DARKOPS-004",
+      "title": "Global store selector does not synchronize with URL query params or localStorage across full page reloads",
+      "severity": "P3",
+      "status": "confirmed",
+      "page": "/*",
+      "component": "Topbar (Topbar.tsx)",
+      "steps_to_reproduce": [
+        "1. Navigate to http://localhost:5173",
+        "2. Select a specific dark store in the topbar dropdown (e.g., 'store_nyc_02')",
+        "3. Press browser reload (F5)"
+      ],
+      "expected_behavior": "Selected store ID should persist across page reloads via URL query param (?store_id=...) or localStorage.",
+      "actual_behavior": "Selected store resets to empty string ('All Dark Stores') upon full reload because state is only stored in memory in App.tsx.",
+      "browser_error": null,
+      "http_status": null,
+      "request_path": null,
+      "correlation_id": null,
+      "root_cause": "selectedStoreId state in App.tsx is initialized to '' without reading from useSearchParams or localStorage.",
+      "root_cause_confidence": "high",
+      "evidence": [
+        "apps/dashboard/src/App.tsx line 18: const [selectedStoreId, setSelectedStoreId] = useState<string>('');"
+      ],
+      "proposed_fix": "Initialize selectedStoreId from URL search params with fallback to localStorage.",
+      "verification_test": "Select store, reload page, assert selected store remains active in topbar and table filters."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+=== DarkOps AI Network Requests & Responses Audit Log ===
+Date: 2026-10-16
+Audited URL: http://localhost:5173
+Operational API URL: http://localhost:3000
+Optimization Service URL: http://localhost:8000
+
+Sample Network Traffic Monitored:
+---------------------------------
+
+1. GET /healthz
+- Endpoint: http://localhost:3000/healthz
+- Method: GET
+- Status: 200 OK
+- Response: {"status":"ok","service":"operational-api","timestamp":"2026-10-16T16:45:33.196Z"}
+- Latency: 4ms
+
+2. GET /healthz (Optimization Service)
+- Endpoint: http://localhost:8000/healthz
+- Method: GET
+- Status: 200 OK
+- Response: {"status":"ok","service":"optimization-service","timestamp":"2026-10-16T16:45:33.537248+00:00"}
+- Latency: 5ms
+
+3. GET /api/v1/stores
+- Endpoint: http://localhost:3000/api/v1/stores?limit=100
+- Method: GET
+- Headers: Authorization: Bearer [REDACTED], X-Actor-Id: operations-dashboard-operator, X-Correlation-Id: uuid-...
+- Status: 200 OK
+- Response Payload Count: 9 active dark stores returned
+- Latency: 12ms
+
+4. GET /api/v1/inventory
+- Endpoint: http://localhost:3000/api/v1/inventory?limit=50
+- Method: GET
+- Status: 200 OK
+- Response Payload Count: Authoritative physical stock, reservations, and ATP
+- Latency: 18ms
+
+5. GET /api/v1/inventory/recommendations
+- Endpoint: http://localhost:3000/api/v1/inventory/recommendations?status=PENDING&limit=50
+- Method: GET
+- Status: 200 OK
+- Latency: 15ms
+
+6. GET /api/v1/orders
+- Endpoint: http://localhost:3000/api/v1/orders?limit=50
+- Method: GET
+- Status: 200 OK
+- Response: Valid orders with lifecycle states (PENDING, ALLOCATED, DELIVERED)
+- Latency: 14ms
+
+7. GET /api/v1/warehouse-layouts/store/store_nyc_01/active
+- Endpoint: http://localhost:3000/api/v1/warehouse-layouts/store/store_nyc_01/active
+- Method: GET
+- Status: 200 OK
+- Response: Authoritative walkable grid geometry, rack coords, depot stations
+- Latency: 11ms
+
+8. POST /api/v1/optimize/picker-route
+- Endpoint: http://localhost:8000/api/v1/optimize/picker-route
+- Method: POST
+- Status: 200 OK
+- Response: OR-Tools TSP path computed: 34.6m vs 48.2m S-Shape baseline (-28.2%)
+- Latency: 42ms
+
+9. GET /api/v1/simulation/scenarios
+- Endpoint: http://localhost:3000/api/v1/simulation/scenarios
+- Method: GET
+- Status: 200 OK
+- Response: 2 validated scenario templates ("manhattan-demo", "fast-01")
+- Latency: 8ms
+
+10. GET /api/v1/simulation/runs
+- Endpoint: http://localhost:3000/api/v1/simulation/runs
+- Method: GET
+- Status: 200 OK
+- Response: Array of simulated runs with statuses, seeds, durations
+- Latency: 10ms
+
+Summary:
+- Total HTTP failures: 0
+- Total 4xx client errors: 0
+- Total 5xx server errors: 0
+- Missing headers or auth rejections: 0

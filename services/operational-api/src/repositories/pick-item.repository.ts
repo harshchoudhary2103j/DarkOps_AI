@@ -40,14 +40,33 @@ export class PickItemRepository {
 
   async findByTaskId(taskId: string, client?: PoolClient): Promise<PickItem[]> {
     const q = client || pool;
-    const sql = `SELECT * FROM pick_items WHERE picking_task_id = $1 ORDER BY created_at ASC`;
+    const sql = `
+      SELECT 
+        pi.*,
+        s.sku_code,
+        p.name AS product_name
+      FROM pick_items pi
+      LEFT JOIN skus s ON pi.sku_id = s.id
+      LEFT JOIN products p ON s.product_id = p.id
+      WHERE pi.picking_task_id = $1 
+      ORDER BY pi.created_at ASC
+    `;
     const { rows } = await q.query(sql, [taskId]);
     return rows.map(this.mapRow);
   }
 
   async findById(id: string, client?: PoolClient): Promise<PickItem | null> {
     const q = client || pool;
-    const sql = `SELECT * FROM pick_items WHERE id = $1`;
+    const sql = `
+      SELECT 
+        pi.*,
+        s.sku_code,
+        p.name AS product_name
+      FROM pick_items pi
+      LEFT JOIN skus s ON pi.sku_id = s.id
+      LEFT JOIN products p ON s.product_id = p.id
+      WHERE pi.id = $1
+    `;
     const { rows } = await q.query(sql, [id]);
     return rows.length > 0 ? this.mapRow(rows[0]) : null;
   }
@@ -94,7 +113,9 @@ export class PickItemRepository {
       damaged_quantity: parseInt(r.damaged_quantity, 10),
       status: r.status,
       created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
-      updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at
+      updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at,
+      sku_code: r.sku_code || undefined,
+      product_name: r.product_name || undefined
     };
   }
 }

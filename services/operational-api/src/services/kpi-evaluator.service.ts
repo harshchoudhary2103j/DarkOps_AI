@@ -620,7 +620,7 @@ export class KpiEvaluatorService {
       formula_version: '1.0.0',
       evaluated_at: new Date().toISOString(),
       event_count: events.length,
-      policy_identifiers: ['baseline_policies_v1'],
+      policy_identifiers: [configSnapshot.policy_identifier || 'baseline_policies_v1'],
       policy_config: configSnapshot,
       cost_config: costConfig,
       kpis,

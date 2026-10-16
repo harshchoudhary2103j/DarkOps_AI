@@ -71,6 +71,9 @@ export interface OrderLine {
   status: OrderLineStatus;
   created_at: string;
   updated_at: string;
+  sku_code?: string;
+  product_name?: string;
+  unit_price?: number;
 }
 
 export interface PickingTask {
@@ -101,6 +104,8 @@ export interface PickItem {
   status: PickItemStatus;
   created_at: string;
   updated_at: string;
+  sku_code?: string;
+  product_name?: string;
 }
 
 export interface OrderLifecycleEvent {

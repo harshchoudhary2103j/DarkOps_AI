@@ -1,12 +1,26 @@
-from datetime import datetime, timezone
 import os
+from datetime import datetime, timezone
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from src.routers import replenishment_router, allocation_router, picker_route_router
 
 app = FastAPI(
     title="DarkOps AI Optimization Service",
     version="0.1.0",
     description="Stateless optimization engine for quick-commerce replenishment, allocation, and picker routing."
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(replenishment_router)
+app.include_router(allocation_router)
+app.include_router(picker_route_router)
 
 
 @app.get("/healthz")
