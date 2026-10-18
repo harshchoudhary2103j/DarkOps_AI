@@ -1,10 +1,66 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://darkops_user:darkops_password@localhost:5432/darkops_db'
-});
+async function seedViaApi(apiUrl) {
+  const base = apiUrl.replace(/\/+$/, '');
+  console.log(`Seeding realistic orders via Operational API at ${base}...`);
+
+  const order1Payload = {
+    customer_id: 'cust-sarah-m',
+    customer_latitude: 40.7580,
+    customer_longitude: -73.9855,
+    lines: [
+      { sku_id: 'sku-manhattan-demo-006', quantity: 2 },
+      { sku_id: 'sku-manhattan-demo-013', quantity: 2 },
+      { sku_id: 'sku-manhattan-demo-001', quantity: 1 }
+    ]
+  };
+
+  const order2Payload = {
+    customer_id: 'cust-david-k',
+    customer_latitude: 40.7610,
+    customer_longitude: -73.9790,
+    lines: [
+      { sku_id: 'sku-manhattan-demo-001', quantity: 2 },
+      { sku_id: 'sku-manhattan-demo-003', quantity: 1 },
+      { sku_id: 'sku-manhattan-demo-004', quantity: 3 }
+    ]
+  };
+
+  for (const payload of [order1Payload, order2Payload]) {
+    try {
+      const res = await fetch(`${base}/api/v1/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Actor-Id': 'seed-script' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        console.log(`Created order ${json.data.id} via API.`);
+        const allocRes = await fetch(`${base}/api/v1/orders/${json.data.id}/allocate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Actor-Id': 'seed-script' }
+        });
+        if (allocRes.ok) {
+          console.log(`Allocated order ${json.data.id}.`);
+        }
+      } else {
+        console.warn(`Order creation returned ${res.status}: ${await res.text()}`);
+      }
+    } catch (e) {
+      console.warn(`Failed to seed order via API: ${e.message}`);
+    }
+  }
+}
 
 async function main() {
+  if (process.env.API_URL) {
+    await seedViaApi(process.env.API_URL);
+    return;
+  }
+
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://darkops_user:darkops_password@localhost:5432/darkops_db'
+  });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

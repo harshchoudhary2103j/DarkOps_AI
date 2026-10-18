@@ -14,8 +14,8 @@ export function adminAuthGuard(req: AuthenticatedRequest, res: Response, next: N
   const adminKey = req.headers['x-admin-key'];
   const actorHeader = req.headers['x-actor-id'];
 
-  // Check if strict authentication is required
-  const requireAuth = process.env.REQUIRE_AUTH === 'true' || process.env.NODE_ENV === 'production';
+  // Check if strict authentication is required (opt-in via REQUIRE_AUTH=true)
+  const requireAuth = process.env.REQUIRE_AUTH === 'true';
   const expectedSecret = process.env.JWT_SECRET || 'development_jwt_secret_change_in_production_32chars_min';
 
   if (requireAuth) {

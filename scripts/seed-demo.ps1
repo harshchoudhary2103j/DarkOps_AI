@@ -35,7 +35,7 @@ while (-not $ready -and $attempt -lt $maxRetries) {
       Write-Host "Operational API is healthy and reachable!" -ForegroundColor Green
     }
   } catch {
-    Write-Host "Attempt $attempt/$maxRetries: Waiting for Operational API to respond..." -ForegroundColor Gray
+    Write-Host "Attempt $($attempt)/$($maxRetries): Waiting for Operational API to respond..." -ForegroundColor Gray
     Start-Sleep -Seconds 2
   }
 }

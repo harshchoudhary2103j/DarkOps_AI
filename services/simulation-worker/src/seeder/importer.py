@@ -38,11 +38,15 @@ class ImportReport:
 
 class WorldImporter:
     def __init__(self, api_base_url: str = "http://localhost:3000"):
+        import os
         self.base_url = api_base_url.rstrip("/")
+        jwt_token = os.environ.get("JWT_SECRET", "development_jwt_secret_change_in_production_32chars_min")
         self.headers = {
             "Content-Type": "application/json",
             "X-Actor-Id": "simulation-worker-seeder",
-            "X-Actor-Role": "ADMIN"
+            "X-Actor-Role": "ADMIN",
+            "Authorization": f"Bearer {jwt_token}",
+            "x-admin-key": jwt_token
         }
 
     def import_world(self, world: SyntheticWorld, dry_run: bool = False) -> ImportReport:
