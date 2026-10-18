@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   Grid,
   Play,
@@ -34,6 +35,8 @@ interface WarehousePageProps {
 
 export const WarehousePage: React.FC<WarehousePageProps> = ({ selectedStoreId }) => {
   const { showSuccess, showError } = useToast();
+  const [searchParams] = useSearchParams();
+  const urlOrderId = searchParams.get('orderId');
 
   // 1. Fetch stores list
   const { data: storesData } = useQuery({
@@ -46,7 +49,7 @@ export const WarehousePage: React.FC<WarehousePageProps> = ({ selectedStoreId })
   const { data: ordersData } = useQuery({
     queryKey: ['warehouse-orders-list'],
     queryFn: () => apiClient.listOrders({ limit: 50 }),
-    refetchInterval: 12000,
+    refetchInterval: 3000,
   });
   const allOrders: Order[] = ordersData?.data || [];
   const activeOrders = useMemo(() => {
@@ -55,14 +58,23 @@ export const WarehousePage: React.FC<WarehousePageProps> = ({ selectedStoreId })
     );
   }, [allOrders]);
 
-  // Order selection state: default to 'ord-manhattan-8921' or first active order
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('ord-manhattan-8921');
+  // Order selection state: respect URL orderId if given, otherwise first active order or custom
+  const [selectedOrderId, setSelectedOrderId] = useState<string>(urlOrderId || 'custom');
+
+  useEffect(() => {
+    if (urlOrderId) {
+      setSelectedOrderId(urlOrderId);
+    } else if (selectedOrderId === 'custom' && activeOrders.length > 0) {
+      setSelectedOrderId(activeOrders[0].id);
+    }
+  }, [urlOrderId, activeOrders]);
 
   // Fetch full details of the selected order
   const { data: orderDetailData, isLoading: isOrderDetailLoading } = useQuery({
     queryKey: ['warehouse-order-detail', selectedOrderId],
     queryFn: () => apiClient.getOrder(selectedOrderId),
     enabled: Boolean(selectedOrderId && selectedOrderId !== 'custom'),
+    refetchInterval: 3000,
   });
   const activeOrder = orderDetailData?.data;
 
@@ -201,13 +213,23 @@ export const WarehousePage: React.FC<WarehousePageProps> = ({ selectedStoreId })
     }
 
     const pickItems = shelfList.map((sId, i) => {
-      const matching = layoutNodes.find((n: any) => n.shelf_id === sId || n.id === sId);
-      const prodInfo = shelfProductsMap.get(sId);
+      const cleanId = sId.replace(/^.*SHELF-/, '').trim();
+      const matching =
+        layoutNodes.find(
+          (n: any) =>
+            n.id === sId ||
+            n.shelf_id === sId ||
+            n.shelf_id === `SHELF-${cleanId}` ||
+            n.id?.endsWith(`SHELF-${cleanId}`) ||
+            n.id?.endsWith(cleanId)
+        ) || shelfNodes[i % (shelfNodes.length || 1)];
+
+      const prodInfo = shelfProductsMap.get(sId) || shelfProductsMap.get(cleanId);
       return {
         item_id: `item-${i + 1}`,
-        shelf_id: sId,
-        shelf_node_id: matching?.id || sId,
-        sku_id: prodInfo?.skuId || `SKU-${sId}`,
+        shelf_id: matching?.shelf_id || `SHELF-${cleanId}`,
+        shelf_node_id: matching?.id || `${storeIdToUse}-SHELF-${cleanId}`,
+        sku_id: prodInfo?.skuId || `SKU-${cleanId}`,
         quantity: prodInfo?.quantity || 1,
       };
     });
@@ -224,6 +246,23 @@ export const WarehousePage: React.FC<WarehousePageProps> = ({ selectedStoreId })
       enable_fallback: true,
     });
   };
+
+  const lastOptimizedOrderIdRef = useRef<string | null>(null);
+
+  // Auto-run picker optimizer when an order is selected and shelves are ready
+  useEffect(() => {
+    if (
+      selectedOrderId !== 'custom' &&
+      activeOrder &&
+      pickBasketsInput &&
+      layoutNodes.length > 0 &&
+      lastOptimizedOrderIdRef.current !== selectedOrderId &&
+      !optimizeMutation.isPending
+    ) {
+      lastOptimizedOrderIdRef.current = selectedOrderId;
+      handleRunOptimizer();
+    }
+  }, [selectedOrderId, activeOrder?.id, pickBasketsInput, layoutNodes.length]);
 
   const handleShelfClick = (shelfId: string) => {
     setSelectedShelf(shelfId);

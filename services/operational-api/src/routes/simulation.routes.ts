@@ -2,11 +2,16 @@ import { Router, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { simulationService } from '../services/simulation.service';
 import { kpiEvaluatorService } from '../services/kpi-evaluator.service';
+import { surgeSimulationService } from '../services/surge-simulation.service';
 import {
   CreateSimulationRunRequestSchema,
   ListSimulationRunsQuerySchema,
   GetSimulationEventsQuerySchema
 } from '../domain/simulation.schemas';
+import {
+  EvaluateSurgeOrderRequestSchema,
+  EmergencySurgeRestockRequestSchema
+} from '../domain/surge-simulation.schemas';
 
 export const simulationRouter = Router();
 
@@ -147,6 +152,44 @@ simulationRouter.get('/runs/:id/kpis', async (req: AuthenticatedRequest, res: Re
     const { id } = req.params;
     const summary = await kpiEvaluatorService.getOrComputeRunKpis(id, req.correlationId);
     res.status(200).json({ data: summary });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// -----------------------------------------------------------------------------
+// POST /api/v1/simulation/surge/evaluate (Interactive Live Surge Order Evaluation)
+// -----------------------------------------------------------------------------
+simulationRouter.post('/surge/evaluate', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const validated = EvaluateSurgeOrderRequestSchema.parse(req.body);
+    const result = await surgeSimulationService.evaluateSurgeOrder(validated);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// -----------------------------------------------------------------------------
+// POST /api/v1/simulation/surge/emergency-restock (Interactive Surge Shelf Refuel)
+// -----------------------------------------------------------------------------
+simulationRouter.post('/surge/emergency-restock', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const validated = EmergencySurgeRestockRequestSchema.parse(req.body);
+    const result = await surgeSimulationService.executeEmergencyRestock(validated.store_id, validated.quantity);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// -----------------------------------------------------------------------------
+// POST /api/v1/simulation/surge/reset-data (Wipe Old Orders & Reset Clean State)
+// -----------------------------------------------------------------------------
+simulationRouter.post('/surge/reset-data', async (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await surgeSimulationService.resetOperationalData();
+    res.status(200).json({ data: result });
   } catch (error) {
     next(error);
   }

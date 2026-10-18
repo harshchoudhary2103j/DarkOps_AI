@@ -356,4 +356,28 @@ export const apiClient = {
       }),
     });
   },
+
+  // Interactive Surge Simulator
+  evaluateSurgeOrder: async (payload: any) => {
+    return request<ApiItemResponse<any>>(`${API_BASE_URL}/api/v1/simulation/surge/evaluate`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  emergencySurgeRestock: async (payload: { store_id: string; quantity: number }) => {
+    return request<ApiItemResponse<any>>(`${API_BASE_URL}/api/v1/simulation/surge/emergency-restock`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  resetSurgeDatabase: async () => {
+    return request<ApiItemResponse<{ success: boolean; message: string; deletedOrdersCount: number }>>(
+      `${API_BASE_URL}/api/v1/simulation/surge/reset-data`,
+      {
+        method: 'POST',
+      }
+    );
+  },
 };

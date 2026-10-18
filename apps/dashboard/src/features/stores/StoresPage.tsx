@@ -22,6 +22,7 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
   const { data: storesData, isLoading: isStoresLoading, error: storesError } = useQuery({
     queryKey: queryKeys.stores,
     queryFn: () => apiClient.listStores(),
+    refetchInterval: 3000,
   });
 
   // 2. Fetch Service Zones
