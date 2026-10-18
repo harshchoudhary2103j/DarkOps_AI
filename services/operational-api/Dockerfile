@@ -21,6 +21,8 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY src/database/migrations ./dist/database/migrations
+COPY src/database/migrations ./src/database/migrations
 
 USER appuser
 

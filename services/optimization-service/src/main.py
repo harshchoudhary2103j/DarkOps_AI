@@ -32,6 +32,15 @@ def health_check() -> dict:
     }
 
 
+@app.get("/readyz")
+def readiness_check() -> dict:
+    return {
+        "status": "ready",
+        "service": "optimization-service",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))

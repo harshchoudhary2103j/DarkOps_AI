@@ -41,8 +41,18 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const OPT_API_BASE_URL = import.meta.env.VITE_OPTIMIZATION_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:3000'
+).replace(/\/+$/, '');
+
+const OPT_API_BASE_URL = (
+  import.meta.env.VITE_OPTIMIZATION_API_BASE_URL ||
+  import.meta.env.VITE_OPT_API_URL ||
+  'http://localhost:8000'
+).replace(/\/+$/, '');
+
 const AUTH_TOKEN = import.meta.env.VITE_API_AUTH_TOKEN || 'development_jwt_secret_change_in_production_32chars_min';
 
 function generateUUID(): string {

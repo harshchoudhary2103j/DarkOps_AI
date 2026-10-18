@@ -2,8 +2,15 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://darkops_user:darkops_password@localhost:5432/darkops_db';
 
+const isSslRequired =
+  process.env.PGSSLMODE === 'require' ||
+  connectionString.includes('render.com') ||
+  connectionString.includes('sslmode=require') ||
+  (process.env.NODE_ENV === 'production' && !connectionString.includes('localhost') && !connectionString.includes('127.0.0.1'));
+
 export const pool = new Pool({
   connectionString,
+  ssl: isSslRequired ? { rejectUnauthorized: false } : undefined,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,

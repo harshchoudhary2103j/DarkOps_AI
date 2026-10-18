@@ -4,6 +4,10 @@
   "private": true,
   "description": "DarkOps AI — Modular dark-store operations, simulation, and optimization platform",
   "scripts": {
+    "build": "npm run build --workspace=apps/dashboard",
+    "build:api": "npm run build --workspace=services/operational-api",
+    "build:dashboard": "npm run build --workspace=apps/dashboard",
+    "build:all": "npm run build:api && npm run build:dashboard",
     "lint": "echo \"Running lint checks...\"",
     "format": "echo \"Running format checks...\"",
     "type-check": "echo \"Running type checks...\"",

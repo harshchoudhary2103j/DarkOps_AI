@@ -1,0 +1,80 @@
+# ==============================================================================
+# DarkOps AI — Render Infrastructure-as-Code Blueprint
+# ==============================================================================
+# Deploys the complete DarkOps AI backend on Render:
+# 1. Managed PostgreSQL Database (darkops-postgres)
+# 2. Operational API Web Service (Node.js + Express + TypeScript)
+# 3. Optimization Service Web Service (Python + FastAPI + OR-Tools)
+# 4. Simulation Worker Background Service (Python DES Engine)
+# ==============================================================================
+
+databases:
+  - name: darkops-postgres
+    databaseName: darkops_db
+    user: darkops_user
+    plan: free
+    ipAllowList: [] # Allows internal and external access
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Operational API Service (Node.js + Express)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: darkops-operational-api
+    runtime: node
+    rootDir: services/operational-api
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: darkops-postgres
+          property: connectionString
+      - key: PGSSLMODE
+        value: require
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
+  # ----------------------------------------------------------------------------
+  # 2. Optimization Service (Python + FastAPI + OR-Tools)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: darkops-optimization-service
+    runtime: python
+    rootDir: services/optimization-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+  # ----------------------------------------------------------------------------
+  # 3. Simulation Worker (Python Background Worker)
+  # ----------------------------------------------------------------------------
+  - type: worker
+    name: darkops-simulation-worker
+    runtime: python
+    rootDir: services/simulation-worker
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.main
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: darkops-postgres
+          property: connectionString
+      - key: PGSSLMODE
+        value: require
