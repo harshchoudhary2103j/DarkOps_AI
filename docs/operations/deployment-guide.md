@@ -140,3 +140,15 @@ Once both Render and Vercel are running:
    - Confirm active stores render on the Map.
    - Verify inventory balances and stockout risks.
    - Open AI Copilot drawer and execute an authoritative query.
+
+---
+
+## 5. Troubleshooting & FAQ
+
+### Build Failure: `maturin / cargo metadata failed: pydantic-core`
+- **Root Cause**: Render's default native environment without explicit version pins may default to Python 3.14 (unreleased/experimental). Modern packages (`pydantic-core`, `ortools`, `psycopg2`) do not have pre-compiled binary wheels on PyPI for Python 3.14, causing pip to attempt building from source with Rust/Cargo, which fails.
+- **Solution**:
+  1. DarkOps AI pins `PYTHON_VERSION: 3.11.9` in `render.yaml`.
+  2. The repository includes `.python-version` containing `3.11.9` in the repository root and service directories.
+  3. Pre-compiled Linux wheels for Python 3.11 install immediately without compiling.
+  4. If manually configuring on Render, add an environment variable `PYTHON_VERSION=3.11.9` under the service's **Environment** tab.

@@ -29,6 +29,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 20.14.0
       - key: AUTO_MIGRATE
         value: "true"
       - key: DATABASE_URL
@@ -53,10 +55,12 @@ services:
     name: darkops-optimization-service
     runtime: python
     rootDir: services/optimization-service
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PYTHONUNBUFFERED
         value: "1"
 
@@ -67,9 +71,11 @@ services:
     name: darkops-simulation-worker
     runtime: python
     rootDir: services/simulation-worker
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python -m src.main
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: DATABASE_URL
