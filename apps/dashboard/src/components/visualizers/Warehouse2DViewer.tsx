@@ -216,7 +216,7 @@ export const Warehouse2DViewer: React.FC<Warehouse2DViewerProps> = ({
             Layout v{layout.version || 1}
           </Badge>
           <span className="text-xs text-slate-300 font-mono">
-            {shelfNodes.length} Shelves &bull; {aisles.length} Aisles
+            {shelfNodes.length} Shelves &bull; {aisles.length} Aisles &bull; {nodes.length} Nodes
           </span>
         </div>
 
@@ -240,7 +240,7 @@ export const Warehouse2DViewer: React.FC<Warehouse2DViewerProps> = ({
                   routeLayer === 'optimized' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Optimized Only
+                Optimized (TSP)
               </button>
               <button
                 type="button"
@@ -249,7 +249,7 @@ export const Warehouse2DViewer: React.FC<Warehouse2DViewerProps> = ({
                   routeLayer === 'baseline' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Baseline Only
+                Baseline (S-Shape)
               </button>
             </div>
           )}

@@ -380,4 +380,60 @@ export const apiClient = {
       }
     );
   },
+
+  // ---------------------------------------------------------------------------
+  // AI Operations Copilot Endpoints
+  // ---------------------------------------------------------------------------
+  copilotChat: async (payload: {
+    message: string;
+    store_id?: string;
+    history?: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>;
+  }) => {
+    return request<ApiItemResponse<{
+      reply: string;
+      toolCallsExecuted: Array<{
+        tool_name: string;
+        parameters: any;
+        result?: any;
+        actionProposal?: any;
+        isMutating: boolean;
+      }>;
+      actionProposal?: any;
+      correlationId: string;
+    }>>(`${API_BASE_URL}/api/v1/copilot/chat`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  copilotListProposals: async () => {
+    return request<ApiItemResponse<any[]>>(`${API_BASE_URL}/api/v1/copilot/proposals`);
+  },
+
+  copilotDecideProposal: async (
+    proposalId: string,
+    decision: 'APPROVE' | 'REJECT',
+    reason?: string
+  ) => {
+    return request<ApiItemResponse<{
+      status: string;
+      message: string;
+      proposal: any;
+      verification?: any;
+    }>>(`${API_BASE_URL}/api/v1/copilot/proposals/${proposalId}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    });
+  },
+
+  copilotGetAuditLogs: async () => {
+    return request<ApiItemResponse<any[]>>(`${API_BASE_URL}/api/v1/copilot/audit-logs`);
+  },
+
+  copilotGetTools: async () => {
+    return request<ApiItemResponse<any[]>>(`${API_BASE_URL}/api/v1/copilot/tools`);
+  },
 };
+
+export const api = apiClient;
+

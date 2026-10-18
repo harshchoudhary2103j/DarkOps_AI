@@ -85,10 +85,10 @@ describe('Warehouse 2D Layout & Store Map Visualizers', () => {
     const baselineBtn = screen.getByRole('button', { name: /Baseline \(S-Shape\)/i });
 
     fireEvent.click(optBtn);
-    expect(optBtn).toHaveClass('bg-cyan-500');
+    expect(optBtn).toHaveClass('text-cyan-300');
 
     fireEvent.click(baselineBtn);
-    expect(baselineBtn).toHaveClass('bg-amber-500');
+    expect(baselineBtn).toHaveClass('text-amber-300');
   });
 
   it('renders StoreGeoMap with stores and handles selection', () => {

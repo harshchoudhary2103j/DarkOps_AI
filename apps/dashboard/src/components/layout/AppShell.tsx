@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { SyntheticBanner } from './SyntheticBanner';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { CopilotDrawer } from '../copilot/CopilotDrawer';
+import { CopilotTriggerButton } from '../copilot/CopilotTriggerButton';
 
 const pageTitles: Record<string, string> = {
   '/overview': 'Operations Control Tower',
@@ -19,6 +21,7 @@ export const AppShell: React.FC<{
   onSelectStore: (id: string) => void;
 }> = ({ selectedStoreId, onSelectStore }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const location = useLocation();
 
   const currentPath = '/' + location.pathname.split('/')[1];
@@ -40,6 +43,7 @@ export const AppShell: React.FC<{
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
             selectedStoreId={selectedStoreId}
             onSelectStore={onSelectStore}
+            onToggleCopilot={() => setCopilotOpen((prev) => !prev)}
           />
 
           <main id="main-content" className="flex-1 p-4 md:p-8 max-w-[1600px] w-full mx-auto">
@@ -47,6 +51,14 @@ export const AppShell: React.FC<{
           </main>
         </div>
       </div>
+
+      {/* 4. AI Operations Copilot Trigger & Drawer */}
+      <CopilotTriggerButton onClick={() => setCopilotOpen(true)} isOpen={copilotOpen} />
+      <CopilotDrawer
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        selectedStoreId={selectedStoreId}
+      />
     </div>
   );
 };

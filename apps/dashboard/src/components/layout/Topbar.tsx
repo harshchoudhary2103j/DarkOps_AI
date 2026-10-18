@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, RefreshCw, Store as StoreIcon, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Menu, RefreshCw, Store as StoreIcon, ShieldCheck, ShieldAlert, Bot } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/api-client';
 import { queryKeys } from '../../lib/query-client';
@@ -9,6 +9,7 @@ interface TopbarProps {
   selectedStoreId: string;
   onSelectStore: (storeId: string) => void;
   title: string;
+  onToggleCopilot?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -16,6 +17,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   selectedStoreId,
   onSelectStore,
   title,
+  onToggleCopilot,
 }) => {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -115,6 +117,21 @@ export const Topbar: React.FC<TopbarProps> = ({
             </>
           )}
         </div>
+
+        {/* AI Copilot Quick Launch */}
+        {onToggleCopilot && (
+          <button
+            type="button"
+            id="btn-topbar-copilot"
+            onClick={onToggleCopilot}
+            aria-label="Toggle AI Operations Copilot"
+            title="Open AI Operations Copilot"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600/20 to-indigo-600/20 hover:from-cyan-600/30 hover:to-indigo-600/30 text-cyan-300 hover:text-white border border-cyan-500/30 hover:border-cyan-400/50 transition-all text-xs font-semibold"
+          >
+            <Bot className="w-4 h-4 text-cyan-400" />
+            <span className="hidden md:inline">AI Copilot</span>
+          </button>
+        )}
 
         {/* Manual Refresh Control */}
         <button

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -18,7 +18,12 @@ import { Badge, getStatusBadgeVariant } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { formatNumber, formatDate } from '../../lib/formatters';
-import { getRealisticProductName } from '../../lib/catalog-helper';
+import {
+  getRealisticProductName,
+  getOrderDisplayName,
+  getCleanStoreName,
+  getStoreSubdivision,
+} from '../../lib/catalog-helper';
 
 interface OverviewPageProps {
   selectedStoreId?: string;
@@ -71,11 +76,21 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
     queryFn: () => apiClient.listMovements(selectedStoreId || undefined),
   });
 
-  const stores = storesData?.data || [];
+  const rawStores = storesData?.data || [];
+  const stores = useMemo(() => {
+    return rawStores.filter((s) => !s.id.includes('concur') && !s.name.includes('Race Test'));
+  }, [rawStores]);
+
   const orders = ordersData?.data || [];
   const lowStockItems = lowStockData?.data || [];
   const pendingRecs = recsData?.data || [];
   const recentMovements = movementsData?.data || [];
+
+  const storeMap = useMemo(() => {
+    const map = new Map<string, any>();
+    stores.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [stores]);
 
   // Authoritative Derived Aggregates
   const activeStoresCount = stores.filter((s) => s.status === 'ACTIVE').length;
@@ -239,10 +254,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-navy-950/60 border-b border-navy-750 text-slate-400">
-                      <th className="px-4 py-3 font-semibold">Order ID</th>
-                      <th className="px-4 py-3 font-semibold">Store</th>
+                      <th className="px-4 py-3 font-semibold">Order & Basket Details</th>
+                      <th className="px-4 py-3 font-semibold">Assigned Dark Store</th>
                       <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold">Created At</th>
+                      <th className="px-4 py-3 font-semibold">Placed At</th>
                       <th className="px-4 py-3 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
@@ -260,28 +275,69 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                         </td>
                       </tr>
                     ) : (
-                      orders.slice(0, 6).map((order) => (
-                        <tr key={order.id} className="hover:bg-navy-800/40">
-                          <td className="px-4 py-3 font-mono font-medium text-cyan-300">
-                            {order.id.slice(0, 8)}...
-                          </td>
-                          <td className="px-4 py-3 text-slate-300">{order.store_name || order.store_id}</td>
-                          <td className="px-4 py-3">
-                            <Badge variant={getStatusBadgeVariant(order.status)} size="sm" dot>
-                              {order.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-slate-400">{formatDate(order.created_at)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <Link
-                              to="/orders"
-                              className="text-cyan-400 hover:text-cyan-300 font-medium text-[11px]"
-                            >
-                              Inspect
-                            </Link>
-                          </td>
-                        </tr>
-                      ))
+                      orders.slice(0, 6).map((order) => {
+                        const orderInfo = getOrderDisplayName(order);
+                        const store = storeMap.get(order.store_id);
+                        const storeFullName = order.store_name || store?.name || 'Awaiting Allocation';
+                        const cleanStore = getCleanStoreName(storeFullName, order.store_id);
+                        const subdivision = getStoreSubdivision(order.store_id, storeFullName);
+
+                        return (
+                          <tr key={order.id} className="hover:bg-navy-800/40 transition-colors">
+                            {/* 1. Order Name & ID Breakdown */}
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-white text-xs flex items-center gap-1.5">
+                                <ShoppingBag className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                                <span>{orderInfo.name}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+                                <span className="text-cyan-300 font-bold">{orderInfo.orderCode}</span>
+                                <span>&bull;</span>
+                                <span>{orderInfo.customerName}</span>
+                                <span>&bull;</span>
+                                <span className="text-slate-300">{orderInfo.itemSummary}</span>
+                              </div>
+                            </td>
+
+                            {/* 2. Store Name & ID Breakdown */}
+                            <td className="px-4 py-3">
+                              <div className="text-xs text-slate-200 font-medium flex items-center gap-1.5">
+                                <StoreIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span className="font-semibold">{cleanStore}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+                                <span className="text-cyan-300/90">{subdivision}</span>
+                                {order.store_id && (
+                                  <>
+                                    <span>&bull;</span>
+                                    <span className="text-slate-500">{order.store_id}</span>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* 3. Lifecycle Status */}
+                            <td className="px-4 py-3">
+                              <Badge variant={getStatusBadgeVariant(order.status)} size="sm" dot>
+                                {order.status}
+                              </Badge>
+                            </td>
+
+                            {/* 4. Timestamp */}
+                            <td className="px-4 py-3 text-slate-400">{formatDate(order.created_at)}</td>
+
+                            {/* 5. Action */}
+                            <td className="px-4 py-3 text-right">
+                              <Link
+                                to={`/orders?search=${order.id}`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-navy-800 hover:bg-navy-750 text-cyan-300 border border-navy-700/80 transition-colors"
+                              >
+                                Inspect
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -297,8 +353,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
               icon={<AlertTriangle className="w-4 h-4 text-rose-400" />}
               action={
                 <Link
-                  to="/inventory"
-                  className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-medium"
+                  to={selectedStoreId ? `/inventory?storeId=${selectedStoreId}` : '/inventory'}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium"
                 >
                   Manage Inventory <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
@@ -314,18 +370,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                       <th className="px-4 py-3 font-semibold text-right">Available</th>
                       <th className="px-4 py-3 font-semibold text-right">Min Buffer</th>
                       <th className="px-4 py-3 font-semibold text-center">Deficit</th>
+                      <th className="px-4 py-3 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-navy-750/50">
                     {isLowStockLoading ? (
                       <tr>
-                        <td colSpan={5} className="p-4">
+                        <td colSpan={6} className="p-4">
                           <Skeleton className="h-8 w-full" count={3} />
                         </td>
                       </tr>
                     ) : lowStockItems.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-emerald-400 font-medium">
+                        <td colSpan={6} className="p-6 text-center text-emerald-400 font-medium">
                           All store inventories are operating within safe stock buffers.
                         </td>
                       </tr>
@@ -337,8 +394,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                         const productName = getRealisticProductName(item.sku_code || item.sku_id, item.product_name);
                         return (
                           <tr key={`${item.store_id}-${item.sku_id}-${idx}`} className="hover:bg-navy-800/40">
-                            <td className="px-4 py-3 font-mono text-slate-200">{item.sku_code || item.sku_id}</td>
-                            <td className="px-4 py-3 text-slate-300">{productName}</td>
+                            <td className="px-4 py-3 font-mono text-slate-200">
+                              <Link
+                                to={`/inventory?storeId=${item.store_id}&search=${item.sku_code || item.sku_id}`}
+                                className="hover:text-cyan-400 underline underline-offset-2"
+                                title="View in Inventory Ledger"
+                              >
+                                {item.sku_code || item.sku_id}
+                              </Link>
+                            </td>
+                            <td className="px-4 py-3 text-slate-300 font-medium">{productName}</td>
                             <td className="px-4 py-3 text-right font-mono text-rose-400 font-bold">
                               {formatNumber(avail)}
                             </td>
@@ -349,6 +414,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                               <Badge variant="rose" size="sm">
                                 -{formatNumber(deficit)} units
                               </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Link
+                                to={`/replenishment?targetSkuId=${item.sku_id}&targetStoreId=${item.store_id}&targetSkuCode=${item.sku_code || ''}&targetName=${encodeURIComponent(productName)}`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors shadow-sm"
+                                id={`btn-overview-refuel-${item.sku_id}`}
+                              >
+                                Refuel <ArrowRight className="w-3 h-3" />
+                              </Link>
                             </td>
                           </tr>
                         );
@@ -368,7 +442,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
             <CardHeader
               title="Dark Store Workloads"
               description="Current store picker queues & statuses"
-              icon={<StoreIcon className="w-4 h-4" />}
+              icon={<StoreIcon className="w-4 h-4 text-cyan-400" />}
+              action={
+                <Link
+                  to="/network"
+                  className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-medium"
+                >
+                  View Map <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              }
             />
             <CardContent className="p-0">
               <div className="divide-y divide-navy-750/50">
@@ -383,25 +465,37 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
                     const storeQueueCount = orders.filter(
                       (o) => o.store_id === s.id && (o.status === 'ALLOCATED' || o.status === 'PICKING' || o.status === 'PENDING')
                     ).length;
+                    const subdivision = getStoreSubdivision(s.id, s.name);
+                    const cleanName = getCleanStoreName(s.name, s.id);
+
                     return (
-                      <div key={s.id} className="p-3.5 flex items-center justify-between hover:bg-navy-800/30">
+                      <div key={s.id} className="p-3.5 flex items-center justify-between hover:bg-navy-800/30 transition-colors">
                         <div>
-                          <div className="text-xs font-semibold text-white">{s.name}</div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{s.code}</div>
+                          <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                            <StoreIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>{cleanName}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+                            <span className="text-cyan-300/80">{subdivision}</span>
+                            <span>&bull;</span>
+                            <span className="text-slate-500">{s.id}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={getStatusBadgeVariant(s.status)} size="sm">
                             {s.status}
                           </Badge>
-                          <span
-                            className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
+                          <Link
+                            to={`/orders?storeId=${s.id}`}
+                            className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
                               storeQueueCount > 0
-                                ? 'text-cyan-300 bg-cyan-950/40 border-cyan-700/60 font-bold'
-                                : 'text-slate-400 bg-navy-950 border-navy-750'
+                                ? 'text-rose-300 bg-rose-950/40 border-rose-700/60 font-bold hover:bg-rose-900/50'
+                                : 'text-slate-400 bg-navy-950 border-navy-750 hover:text-slate-200'
                             }`}
+                            title="Inspect store orders"
                           >
                             {storeQueueCount} queue
-                          </span>
+                          </Link>
                         </div>
                       </div>
                     );
@@ -415,34 +509,58 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ selectedStoreId }) =
           <Card>
             <CardHeader
               title="Recent Stock Ledger Activity"
-              description="Authoritative inventory movements"
-              icon={<Layers className="w-4 h-4" />}
+              description="Authoritative inventory movements with store allocation"
+              icon={<Layers className="w-4 h-4 text-cyan-400" />}
             />
             <CardContent className="p-3.5 space-y-3">
               {recentMovements.length === 0 ? (
                 <div className="text-center text-slate-500 text-xs py-4">No recent movements recorded</div>
               ) : (
-                recentMovements.slice(0, 5).map((m) => (
-                  <div key={m.id} className="text-xs flex items-start justify-between border-b border-navy-800/50 pb-2">
-                    <div>
-                      <div className="font-medium text-slate-200">
-                        {m.movement_type === 'RECEIPT' ? (
-                          <span className="text-emerald-400">+ Inbound Receipt</span>
-                        ) : m.movement_type === 'ALLOCATION' ? (
-                          <span className="text-cyan-400">Stock Reserved</span>
-                        ) : (
-                          <span>{m.movement_type}</span>
-                        )}
+                recentMovements.slice(0, 5).map((m) => {
+                  const store = storeMap.get(m.store_id);
+                  const storeFullName = store?.name || m.store_id;
+                  const cleanStore = getCleanStoreName(storeFullName, m.store_id);
+                  const productName = getRealisticProductName(m.sku_code || m.sku_id, m.product_name);
+                  const orderRef = m.reference_id ? getOrderDisplayName({ id: m.reference_id }) : null;
+
+                  return (
+                    <div key={m.id} className="text-xs flex items-start justify-between border-b border-navy-800/50 pb-2.5">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-200">
+                            {m.movement_type === 'RECEIPT' ? (
+                              <span className="text-emerald-400">+ Inbound Receipt</span>
+                            ) : m.movement_type === 'ALLOCATION' ? (
+                              <span className="text-cyan-400">Stock Reserved</span>
+                            ) : (
+                              <span>{m.movement_type}</span>
+                            )}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-navy-800 text-cyan-300/90 border border-navy-700 font-mono">
+                            {cleanStore}
+                          </span>
+                        </div>
+                        <div className="text-slate-300 font-medium text-[11px]">
+                          {productName}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
+                          <span>{m.sku_code || m.sku_id}</span>
+                          {orderRef && (
+                            <>
+                              <span>&bull;</span>
+                              <span className="text-cyan-400 font-medium">{orderRef.name} ({orderRef.orderCode})</span>
+                            </>
+                          )}
+                          <span>&bull;</span>
+                          <span>{formatDate(m.created_at)}</span>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {m.sku_code || m.sku_id} &bull; {formatDate(m.created_at)}
-                      </div>
+                      <span className="font-mono font-bold text-slate-100 bg-navy-950 px-2 py-0.5 rounded border border-navy-750 text-[11px] shrink-0 ml-2">
+                        {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+                      </span>
                     </div>
-                    <span className="font-mono font-bold text-slate-100 bg-navy-950 px-2 py-0.5 rounded border border-navy-750 text-[11px]">
-                      {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>

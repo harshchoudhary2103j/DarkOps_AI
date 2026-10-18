@@ -83,3 +83,122 @@ export function getDefaultShelfForProduct(productName: string, fallbackIdx = 0):
   if (found) return found.defaultShelf;
   return REAL_GROCERY_CATALOG[fallbackIdx % REAL_GROCERY_CATALOG.length].defaultShelf;
 }
+
+export interface OrderDisplayInfo {
+  name: string;
+  orderCode: string;
+  customerName: string;
+  itemSummary: string;
+}
+
+const ORDER_BASKET_THEMES = [
+  'Urban Pantry Essentials',
+  'Fresh Produce & Dairy Run',
+  'Morning Breakfast Express',
+  'Organic Market Selection',
+  'Artisan Bakery & Delights',
+  'Quick Household Courier',
+  'Gourmet Kitchen Staples',
+  'Snacks & Beverage Bundle',
+  'Evening Dinner Prep Kit',
+  'Wellness & Hydration Pack',
+];
+
+/**
+ * Returns a human-readable order title and customer breakdown.
+ * Prevents raw IDs from showing in operational tables.
+ */
+export function getOrderDisplayName(order: {
+  id?: string;
+  customer_id?: string | null;
+  line_count?: number;
+  total_requested_units?: number;
+  lines?: any[];
+}): OrderDisplayInfo {
+  const orderId = order.id || '';
+  const customerId = order.customer_id || '';
+  const idLower = orderId.toLowerCase();
+
+  // 1. Resolve Customer Name
+  let customerName = 'Guest Customer';
+  if (customerId) {
+    if (customerId.startsWith('cust-')) {
+      const slug = customerId.replace(/^cust-/, '');
+      if (/[a-zA-Z]/.test(slug) && !/^\d+$/.test(slug)) {
+        customerName = slug
+          .split('-')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+      } else {
+        customerName = `Customer #${slug}`;
+      }
+    } else {
+      customerName = customerId;
+    }
+  }
+
+  // 2. Resolve Basket / Order Title
+  let name = '';
+  if (idLower.includes('surge')) {
+    const numMatch = idLower.match(/\d+/);
+    name = `Surge Rush Priority${numMatch ? ` #${numMatch[0]}` : ''}`;
+  } else if (idLower.includes('morning') || idLower.includes('breakfast')) {
+    name = 'Morning Fresh Express';
+  } else if (idLower.includes('lunch') || idLower.includes('artisan')) {
+    name = 'Artisan Lunch Selection';
+  } else if (idLower.includes('dinner') || idLower.includes('evening')) {
+    name = 'Evening Dinner Staples';
+  } else if (idLower.includes('restock') || idLower.includes('weekend')) {
+    name = 'Weekend Restock Basket';
+  } else if (idLower.includes('pantry') || idLower.includes('express')) {
+    name = 'Express Pantry Pack';
+  } else {
+    let hash = 0;
+    for (let i = 0; i < orderId.length; i++) {
+      hash = (hash * 31 + orderId.charCodeAt(i)) >>> 0;
+    }
+    name = ORDER_BASKET_THEMES[hash % ORDER_BASKET_THEMES.length];
+  }
+
+  const lines = order.line_count || (order.lines ? order.lines.length : 1);
+  const units = order.total_requested_units || lines;
+  const itemSummary = `${lines} ${lines === 1 ? 'item' : 'items'} (${units} units)`;
+
+  return {
+    name,
+    orderCode: orderId ? (orderId.startsWith('#') ? orderId : `#${orderId}`) : '#ORD-PENDING',
+    customerName,
+    itemSummary,
+  };
+}
+
+/**
+ * Strips synthetic and developer prefixes from dark store names for clean UI display.
+ */
+export function getCleanStoreName(rawName?: string, rawId?: string): string {
+  if (!rawName && !rawId) return 'Unassigned Dark Store';
+  const name = rawName || rawId || '';
+
+  // Direct clean replacements
+  return name
+    .replace(/^DarkStore\s*/i, '')
+    .replace(/^store-/i, '')
+    .replace(/Manhattan Urban Network #/i, 'Manhattan Hub #')
+    .replace(/& Lower Manhattan/i, '& Downtown')
+    .replace(/& Midtown East/i, '& Midtown')
+    .trim();
+}
+
+/**
+ * Returns a short neighborhood or borough tag for a dark store.
+ */
+export function getStoreSubdivision(storeId?: string, storeName?: string): string {
+  const s = `${storeId || ''} ${storeName || ''}`.toLowerCase();
+  if (s.includes('midtown') && s.includes('east')) return 'Midtown East';
+  if (s.includes('midtown')) return 'Midtown Manhattan';
+  if (s.includes('soho') || s.includes('lower')) return 'SoHo / Downtown';
+  if (s.includes('east village')) return 'East Village';
+  if (s.includes('demo-02') || s.includes('#02')) return 'Upper West / Midtown';
+  if (s.includes('demo-01') || s.includes('#01')) return 'Midtown West';
+  return 'Manhattan Core';
+}

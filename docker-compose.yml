@@ -38,6 +38,8 @@ services:
       OPTIMIZATION_SERVICE_URL: http://optimization-service:8000
       JWT_SECRET: ${JWT_SECRET:-development_jwt_secret_change_in_production_32chars_min}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     ports:
       - "${OPERATIONAL_API_PORT:-3000}:3000"
     depends_on:

@@ -44,6 +44,7 @@ export interface Order {
   customer_longitude: number;
   delivery_zone_id?: string | null;
   store_id?: string | null;
+  store_name?: string | null;
   status: OrderStatus;
   line_count: number;
   total_requested_units: number;

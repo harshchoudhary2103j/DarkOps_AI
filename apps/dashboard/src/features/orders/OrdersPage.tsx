@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag,
   Package,
   RefreshCw,
   Search,
+  Store as StoreIcon,
 } from 'lucide-react';
 import { apiClient, ApiError } from '../../lib/api-client';
 import { queryKeys } from '../../lib/query-client';
@@ -15,7 +16,12 @@ import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { formatDate } from '../../lib/formatters';
-import { getRealisticProductName, getRealisticUnitPrice } from '../../lib/catalog-helper';
+import {
+  getRealisticProductName,
+  getRealisticUnitPrice,
+  getOrderDisplayName,
+  getStoreSubdivision,
+} from '../../lib/catalog-helper';
 
 interface OrdersPageProps {
   selectedStoreId?: string;
@@ -32,6 +38,18 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ selectedStoreId }) => {
   // Modals
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('Customer requested cancellation');
+
+  // Fetch Stores for human-readable dark store name resolution
+  const { data: storesData } = useQuery({
+    queryKey: queryKeys.stores,
+    queryFn: () => apiClient.listStores(),
+  });
+  const stores = storesData?.data || [];
+  const storeMap = useMemo(() => {
+    const map = new Map<string, any>();
+    stores.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [stores]);
 
   // 1. Fetch Orders
   const {
@@ -108,26 +126,49 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ selectedStoreId }) => {
   const columns: Column<Order>[] = [
     {
       key: 'id',
-      header: 'Order Reference',
-      render: (item) => (
-        <div>
-          <span className="font-mono font-bold text-cyan-300 text-xs">
-            {item.id.slice(0, 8)}...
-          </span>
-          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-            Cust: {item.customer_id ? item.customer_id.slice(0, 6) : 'Guest'}
+      header: 'Order Reference & Customer',
+      render: (item) => {
+        const orderInfo = getOrderDisplayName(item);
+        return (
+          <div>
+            <div className="font-semibold text-white text-xs flex items-center gap-1.5">
+              <ShoppingBag className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>{orderInfo.name}</span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+              <span className="text-cyan-300 font-bold">{orderInfo.orderCode}</span>
+              <span>&bull;</span>
+              <span>{orderInfo.customerName}</span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'store_id',
       header: 'Assigned Dark Store',
-      render: (item) => (
-        <span className="text-xs text-slate-200 font-mono">
-          {item.store_name || item.store_id || 'Awaiting Allocation'}
-        </span>
-      ),
+      render: (item) => {
+        const store = storeMap.get(item.store_id);
+        const storeName = item.store_name || store?.name || 'Awaiting Allocation';
+        const subdivision = getStoreSubdivision(item.store_id, storeName);
+        return (
+          <div>
+            <div className="text-xs text-slate-200 font-semibold flex items-center gap-1.5">
+              <StoreIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>{storeName}</span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+              <span className="text-cyan-300/80">{subdivision}</span>
+              {item.store_id && (
+                <>
+                  <span>&bull;</span>
+                  <span className="text-slate-500">{item.store_id}</span>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'status',

@@ -40,7 +40,12 @@ export class OrderRepository {
 
   async findById(id: string, client?: PoolClient): Promise<Order | null> {
     const q = client || pool;
-    const sql = `SELECT * FROM orders WHERE id = $1`;
+    const sql = `
+      SELECT orders.*, stores.name AS store_name
+      FROM orders
+      LEFT JOIN stores ON stores.id = orders.store_id
+      WHERE orders.id = $1
+    `;
     const { rows } = await q.query(sql, [id]);
     return rows.length > 0 ? this.mapRow(rows[0]) : null;
   }
@@ -109,15 +114,15 @@ export class OrderRepository {
     let idx = 1;
 
     if (params.status) {
-      conditions.push(`status = $${idx++}`);
+      conditions.push(`orders.status = $${idx++}`);
       values.push(params.status);
     }
     if (params.store_id) {
-      conditions.push(`store_id = $${idx++}`);
+      conditions.push(`orders.store_id = $${idx++}`);
       values.push(params.store_id);
     }
     if (params.customer_id) {
-      conditions.push(`customer_id = $${idx++}`);
+      conditions.push(`orders.customer_id = $${idx++}`);
       values.push(params.customer_id);
     }
 
@@ -128,10 +133,11 @@ export class OrderRepository {
     const total = parseInt(countRes.rows[0].total, 10);
 
     const dataSql = `
-      SELECT *
+      SELECT orders.*, stores.name AS store_name
       FROM orders
+      LEFT JOIN stores ON stores.id = orders.store_id
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY orders.created_at DESC
       LIMIT $${idx++} OFFSET $${idx++}
     `;
     const { rows } = await pool.query(dataSql, [...values, limit, offset]);
@@ -155,6 +161,7 @@ export class OrderRepository {
       customer_longitude: parseFloat(r.customer_longitude),
       delivery_zone_id: r.delivery_zone_id,
       store_id: r.store_id,
+      store_name: r.store_name || undefined,
       status: r.status,
       line_count: parseInt(r.line_count, 10),
       total_requested_units: parseInt(r.total_requested_units, 10),

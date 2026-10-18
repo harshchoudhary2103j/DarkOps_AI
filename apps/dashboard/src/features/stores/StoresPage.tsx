@@ -9,6 +9,7 @@ import { Badge, getStatusBadgeVariant } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { formatDate } from '../../lib/formatters';
+import { getCleanStoreName } from '../../lib/catalog-helper';
 
 interface StoresPageProps {
   selectedStoreId?: string;
@@ -31,7 +32,10 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
     queryFn: () => apiClient.listServiceZones(),
   });
 
-  const stores = storesData?.data || [];
+  const rawStores = storesData?.data || [];
+  const stores = rawStores.filter(
+    (s) => !s.id.includes('concur') && !s.name.includes('Race Test')
+  );
   const serviceZones = zonesData?.data || [];
 
   const currentStore = stores.find((s) => s.id === (activeStoreId || selectedStoreId)) || stores[0];
@@ -98,7 +102,7 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-semibold text-white text-xs truncate max-w-[150px]">
-                          {s.name.replace(/DarkStore\s*/i, '').replace(/Manhattan Urban Network\s*/i, 'Manhattan ')}
+                          {getCleanStoreName(s.name, s.id)}
                         </span>
                         {queueDepth > 0 ? (
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-bold shrink-0">
@@ -128,7 +132,11 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
           <Card>
             <CardHeader
               title={currentStore ? currentStore.name : 'Select a Dark Store'}
-              description={currentStore ? `Store Code: ${currentStore.code}` : 'Click any store marker on the map'}
+              description={
+                currentStore
+                  ? `Store ID: ${currentStore.code || currentStore.id}`
+                  : 'Click any store marker on the map'
+              }
               badge={
                 currentStore ? (
                   <Badge variant={getStatusBadgeVariant(currentStore.status)} size="sm">
@@ -156,7 +164,9 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 font-sans block">Queue Backlog</span>
-                      {currentStore.current_queue_depth ?? 0} orders
+                      <span className={currentStore.current_queue_depth ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+                        {currentStore.current_queue_depth ?? 0} orders
+                      </span>
                     </div>
                   </div>
 
@@ -166,6 +176,21 @@ export const StoresPage: React.FC<StoresPageProps> = ({ selectedStoreId, onSelec
                       <p className="text-slate-200 mt-0.5">{currentStore.address}</p>
                     </div>
                   )}
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <a
+                      href={`/inventory?storeId=${currentStore.id}`}
+                      className="px-3 py-1.5 rounded-lg text-center text-xs font-semibold bg-navy-800 hover:bg-navy-750 text-cyan-300 border border-navy-700 transition-colors"
+                    >
+                      Store Stock &rarr;
+                    </a>
+                    <a
+                      href={`/orders?storeId=${currentStore.id}`}
+                      className="px-3 py-1.5 rounded-lg text-center text-xs font-semibold bg-navy-800 hover:bg-navy-750 text-slate-200 border border-navy-700 transition-colors"
+                    >
+                      Store Orders &rarr;
+                    </a>
+                  </div>
 
                   <div className="text-[10px] text-slate-400 pt-2 border-t border-navy-800">
                     Registered: {formatDate(currentStore.created_at)}

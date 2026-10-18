@@ -23,6 +23,8 @@ interface DataTableProps<T> {
   page?: number;
   totalPages?: number;
   onPageChange?: (newPage: number) => void;
+  rowClassName?: (item: T, index: number) => string;
+  rowId?: (item: T, index: number) => string;
   className?: string;
   id?: string;
 }
@@ -37,6 +39,8 @@ export function DataTable<T>({
   page,
   totalPages,
   onPageChange,
+  rowClassName,
+  rowId,
   className = '',
   id,
 }: DataTableProps<T>) {
@@ -84,10 +88,13 @@ export function DataTable<T>({
           <tbody className="divide-y divide-navy-750/50">
             {data.map((item, idx) => {
               const rowKey = keyExtractor(item, idx);
+              const customClass = rowClassName ? rowClassName(item, idx) : '';
+              const customId = rowId ? rowId(item, idx) : undefined;
               return (
                 <tr
                   key={rowKey}
-                  className="hover:bg-navy-800/40 transition-colors duration-100 group"
+                  id={customId}
+                  className={`hover:bg-navy-800/40 transition-colors duration-100 group ${customClass}`}
                 >
                   {columns.map((col) => {
                     const alignClass =
