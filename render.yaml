@@ -23,7 +23,7 @@ services:
     name: darkops-operational-api
     runtime: node
     rootDir: services/operational-api
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: node dist/index.js
     healthCheckPath: /healthz
     envVars:

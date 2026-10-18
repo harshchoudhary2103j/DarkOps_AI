@@ -2,19 +2,25 @@ import { createApp } from './app';
 import { closePool } from './database/db';
 import { runMigrations } from './database/migrate';
 
-async function bootstrap() {
-  if (process.env.AUTO_MIGRATE === 'true') {
-    console.log('[operational-api] AUTO_MIGRATE=true, executing database migrations...');
+async function executeMigrationsWithRetry(maxRetries = 10, delayMs = 3000): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`[operational-api] Attempting database migrations (attempt ${attempt}/${maxRetries})...`);
       const applied = await runMigrations();
-      console.log(`[operational-api] Migrations completed. Applied ${applied.length} new migration(s).`);
-    } catch (err) {
-      console.error('[operational-api] Migration failed during startup:', err);
-      // In production, continue or exit depending on config; let's log and exit if migration fails
-      process.exit(1);
+      console.log(`[operational-api] Migrations completed successfully. Applied ${applied.length} new migration(s).`);
+      return;
+    } catch (err: any) {
+      console.warn(`[operational-api] Migration attempt ${attempt} failed: ${err.message}`);
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        console.error('[operational-api] All migration attempts exhausted. Database may be initializing or unreachable.');
+      }
     }
   }
+}
 
+async function bootstrap() {
   const app = createApp();
   const port = Number(process.env.PORT || 3000);
   const host = '0.0.0.0';
@@ -22,6 +28,12 @@ async function bootstrap() {
   const server = app.listen(port, host, () => {
     console.log(`[operational-api] Server listening on http://${host}:${port}`);
   });
+
+  if (process.env.AUTO_MIGRATE === 'true') {
+    executeMigrationsWithRetry().catch((err) => {
+      console.error('[operational-api] Background migration error:', err);
+    });
+  }
 
   const shutdown = (signal: string) => {
     console.log(`[operational-api] ${signal} received, shutting down gracefully...`);
